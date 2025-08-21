@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
+#![allow(dead_code, unused_mut, unused_variables)]
 ///存放libutpam的私有结构体和常量
 use crate::common::{UtpamConv, UtpamXAuthData};
 
@@ -14,7 +15,7 @@ pub struct UtpamHandle {
     pub(super) oldauthtok: Option<String>,
     pub(super) prompt: Option<String>,
     pub(super) service_name: String,
-    pub(super) user: String,
+    pub(super) user: Option<String>,
     pub(super) rhost: Option<String>,
     pub(super) ruser: Option<String>,
     pub(super) tty: Option<String>,
@@ -59,14 +60,14 @@ enum UtpamBoolean {
 }
 
 pub type DelayFnPtr = Box<dyn Fn() + Send + Sync>; //表示一个可以发送和同步的闭包
-struct UtpamFailDelay {
+pub struct UtpamFailDelay {
     set: UtpamBoolean,
     delay: u32,
     begin: std::time::SystemTime,
     delay_fn_ptr: Option<DelayFnPtr>, // 使用Option来表示可选的延迟函数指针
 }
 
-struct Service {
+pub struct Service {
     module: Option<Box<LoadedModule>>,
     modules_allocated: isize,
     modules_used: isize,
@@ -115,7 +116,7 @@ struct UtpamSubstackState {
     impression: isize,
     status: isize,
 }
-struct UtpamFormerState {
+pub struct UtpamFormerState {
     choice: isize,
     depth: isize,
     impression: isize,
@@ -129,18 +130,15 @@ struct UtpamFormerState {
 
 //UtpamHandle结构体方法
 impl UtpamHandle {
-    pub fn new(service_name: String, user: String) -> Self {
+    pub fn new(service_name: String, pam_conversation: UtpamConv, user: Option<String>) -> Self {
         UtpamHandle {
             authtok: None,
-            pam_conversation: UtpamConv {
-                conv: None,
-                appdata_ptr: vec![],
-            },
+            pam_conversation,
             caller_is: 0,
             oldauthtok: None,
             prompt: None,
-            service_name: service_name,
-            user: user,
+            service_name,
+            user: None,
             rhost: None,
             ruser: None,
             tty: None,

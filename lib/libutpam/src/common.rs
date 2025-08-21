@@ -3,25 +3,30 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
+#![allow(dead_code, unused_mut, unused_variables)]
 ///存放utpam公共的结构体和常量
+use std::any::Any;
 
 pub const PAM_SUCCESS: i32 = 0;
+pub const PAM_SYSTEM_ERR: i32 = 4;
+
 pub const PAM_SESSION_ERR: i32 = 7;
+pub const PAM_ABORT: i32 = 26;
+pub const PAM_INCOMPLETE: i32 = 31;
 
-pub trait Conv {
-    fn conv(
-        &self,
-        num_msg: isize,
-        msg: &[UtpamMessage],
-        resp: &mut Option<Vec<UtpamResponse>>,
-        appdata_ptr: Vec<String>,
-    ) -> isize;
-}
+pub const PAM_ESTABLISH_CRED: u32 = 0x0002;
+
+pub type MiscConv = fn(
+    num_msg: isize,
+    msg: &[UtpamMessage],
+    resp: &mut Option<Vec<UtpamResponse>>,
+    appdata_ptr: Option<Box<dyn Any>>,
+) -> isize;
+
 pub struct UtpamConv {
-    pub conv: Option<Box<dyn Conv>>,
-    pub appdata_ptr: Vec<String>,
+    pub conv: MiscConv,
+    pub appdata_ptr: Option<Box<dyn Any>>,
 }
-
 pub struct UtpamResponse {
     pub resp: Vec<String>,
     pub resp_retcode: isize,

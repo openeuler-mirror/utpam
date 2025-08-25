@@ -1,8 +1,3 @@
-/*
- * SPDX-FileCopyrightText: 2025 UnionTech Software Technology Co., Ltd.
- *
- * SPDX-License-Identifier: GPL-2.0-or-later
- */
 /**pam：
  * 延迟机制，应对认证过程中的攻击，尤其是那些试图通过快速、重复的认证尝试来猜测密码的攻击。
  * 这个机制的核心思想是在认证失败时引入随机延迟，这样可以增加攻击者的猜测成本，因为每次失败的认证请求都会导致一段不可预测的时间延迟。

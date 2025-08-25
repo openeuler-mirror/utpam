@@ -6,4 +6,9 @@
 pub mod common;
 pub mod utpam;
 pub mod utpam_account;
+pub mod utpam_auth;
+pub mod utpam_delay;
+pub mod utpam_end;
+pub mod utpam_env;
+pub mod utpam_handlers;
 pub mod utpam_start;

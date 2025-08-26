@@ -7,3 +7,7 @@ edition = "2021"
 
 [dependencies]
 libutpam = { path = "../libutpam" }
+
+[lib]
+name = "utpam_misc"
+crate-type = ["rlib","cdylib"]

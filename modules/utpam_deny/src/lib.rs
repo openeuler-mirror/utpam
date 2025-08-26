@@ -1,5 +1,10 @@
-use libutpam::common::*;
-use libutpam::utpam::*;
+/*
+ * SPDX-FileCopyrightText: 2025 UnionTech Software Technology Co., Ltd.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+use utpam::common::*;
+use utpam::utpam::*;
 
 //以下6个是SPI函数，函数名、入参和返回值不能变，这是固定的，内容可以变
 

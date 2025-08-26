@@ -1,8 +1,13 @@
+/*
+ * SPDX-FileCopyrightText: 2025 UnionTech Software Technology Co., Ltd.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 #![allow(dead_code, unused_mut)]
 #![allow(unused_variables)]
 
-use libutpam::common::{UtpamMessage, UtpamResponse};
 use std::any::Any;
+use utpam::common::{UtpamMessage, UtpamResponse};
 
 //函数参数和返回值不变即可
 pub fn misc_conv(

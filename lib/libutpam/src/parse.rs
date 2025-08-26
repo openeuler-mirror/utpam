@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: 2025 UnionTech Software Technology Co., Ltd.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 ///处理字符串
 
 ///去除最后一个斜杠前面的字符串，返回剩余的字符串，并转换为小写

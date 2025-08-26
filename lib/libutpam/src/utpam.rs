@@ -9,6 +9,7 @@ use crate::common::{UtpamConv, UtpamXAuthData};
 use crate::utpam_delay::UtpamFailDelay;
 use crate::utpam_env::UtpamEnviron;
 
+pub const PAM_NOT_STACKED: i32 = 0;
 pub const PAM_AUTHENTICATE: i32 = 1;
 
 pub struct UtpamHandle {
@@ -197,7 +198,7 @@ struct UtpamSubstackState {
     status: isize,
 }
 pub struct UtpamFormerState {
-    choice: isize,
+    pub(super) choice: i32,
     depth: isize,
     impression: isize,
     status: isize,

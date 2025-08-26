@@ -7,15 +7,8 @@
 use crate::common::*;
 use crate::utpam::*;
 use crate::utpam_handlers::utpam_init_handlers;
-pub fn utpam_dispatch(utpamh: &mut Option<Box<UtpamHandle>>, _flags: u32, _choice: i32) -> i32 {
+pub fn utpam_dispatch(utpamh: &mut Box<UtpamHandle>, _flags: u32, _choice: i32) -> i32 {
     let retval = PAM_SYSTEM_ERR;
-
-    let utpamh = match utpamh {
-        Some(ref mut handle) => handle,
-        None => {
-            return PAM_SYSTEM_ERR;
-        }
-    };
 
     //具体的认证（待开发）
 

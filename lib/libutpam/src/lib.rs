@@ -14,4 +14,5 @@ pub mod utpam_end;
 pub mod utpam_env;
 pub mod utpam_handlers;
 pub mod utpam_item;
+pub mod utpam_misc;
 pub mod utpam_start;

@@ -60,7 +60,9 @@ pub fn utpam_line_assemble(
                 buffer.chunk.clear();
             }
         }
-        return 1;
+        if !buffer.assembled.is_empty() {
+            return 1;
+        }
     }
 
     // 在遍历结束时检查 buffer.chunk 是否还有内容

@@ -9,4 +9,3 @@ edition = "2021"
 
 [lib]
 name = "utpam_internal"
-crate-type = ["rlib","cdylib"]

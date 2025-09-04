@@ -5,8 +5,10 @@
  */
 use crate::common::{PAM_ABORT, PAM_SUCCESS};
 use crate::utpam::{UtpamHandle, UTPAM_CONFIG_D, UTPAM_CONFIG_DIST_D};
+use utpam_internal::utpam_line::{utpam_line_assemble, UtpamLineBuffer};
 
 use std::fs::{metadata, File, OpenOptions};
+use std::io::BufReader;
 use std::path::PathBuf;
 
 pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> i32 {
@@ -31,6 +33,15 @@ pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> i32 {
             == PAM_SUCCESS
         {
             //解析配置文件(待开发)
+            utpam_parse_config_file(
+                utpamh,
+                file.unwrap(),
+                utpamh.service_name.clone(),
+                0,
+                0,
+                0,
+                None,
+            );
         }
     }
 
@@ -93,4 +104,31 @@ fn utpam_open_config_file(
     }
 
     PAM_ABORT
+}
+
+//解析配置文件
+fn utpam_parse_config_file(
+    _utpamh: &mut Box<UtpamHandle>,
+    file: File,
+    _known_service: String,
+    _requested_module_type: i32,
+    _include_level: i32,
+    _stack_level: i32,
+    _not_other: Option<i32>,
+) -> i32 {
+    let mut f = BufReader::new(file);
+    let mut buffer = UtpamLineBuffer::default();
+    let repl = String::from(" ");
+
+    //逐行处理配置文件内容
+    let mut x = utpam_line_assemble(&mut f, &mut buffer, repl.clone());
+    while x > 0 {
+        if !buffer.assembled.is_empty() {
+            println!("{}", buffer.assembled);
+        }
+
+        //更新循环
+        x = utpam_line_assemble(&mut f, &mut buffer, repl.clone());
+    }
+    0
 }

@@ -10,6 +10,8 @@ use crate::parse::*;
 use crate::utpam::UtpamHandle;
 use crate::utpam_handlers::*;
 
+use std::path::PathBuf;
+
 pub fn utpam_start(
     service_name: String,
     user: Option<String>,
@@ -23,22 +25,39 @@ pub fn utpam_stat_confdir(
     service_name: String,
     user: Option<String>,
     utpam_conversation: UtpamConv,
-    confdir: Option<String>,
+    confdir: PathBuf,
     mut utpamh: &mut Option<Box<UtpamHandle>>,
 ) -> i32 {
-    utpam_start_internal(service_name, user, utpam_conversation, confdir, utpamh)
+    utpam_start_internal(
+        service_name,
+        user,
+        utpam_conversation,
+        Some(confdir),
+        utpamh,
+    )
 }
 
 fn utpam_start_internal(
     service_name: String,
     user: Option<String>,
     utpam_conversation: UtpamConv,
-    confdir: Option<String>,
+    confdir: Option<PathBuf>,
     mut utpamh: &mut Option<Box<UtpamHandle>>,
 ) -> i32 {
     //处理服务名称
     let service_name = parse_str(service_name);
-    let mut pamh = Box::new(UtpamHandle::new(service_name, utpam_conversation, user));
+
+    //判断配置目录是否存在
+    let confdir = match confdir {
+        Some(path) => path,
+        None => PathBuf::default(),
+    };
+    let mut pamh = Box::new(UtpamHandle::new(
+        service_name,
+        utpam_conversation,
+        confdir,
+        user,
+    ));
 
     //实例化UtpamHandle
     if utpam_init_handlers(&mut pamh) != PAM_SUCCESS {

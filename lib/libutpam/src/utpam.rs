@@ -9,8 +9,14 @@ use crate::common::{UtpamConv, UtpamXAuthData};
 use crate::utpam_delay::UtpamFailDelay;
 use crate::utpam_env::UtpamEnviron;
 
+use std::path::PathBuf;
+
 pub const PAM_NOT_STACKED: i32 = 0;
 pub const PAM_AUTHENTICATE: i32 = 1;
+
+pub const UTPAM_CONFIG: &str = "/etc/utpam.conf";
+pub const UTPAM_CONFIG_D: &str = "/etc/utpam.d";
+pub const UTPAM_CONFIG_DIST_D: &str = "/usr/lib/utpam.d";
 
 pub struct UtpamHandle {
     pub(super) authtok: String,
@@ -37,11 +43,16 @@ pub struct UtpamHandle {
     pub(super) choice: isize,
     pub(super) audit_state: isize,
     pub(super) authtok_verified: isize,
-    pub(super) confdir: String,
+    pub(super) confdir: PathBuf,
 }
 
 impl UtpamHandle {
-    pub fn new(service_name: String, pam_conversation: UtpamConv, user: Option<String>) -> Self {
+    pub fn new(
+        service_name: String,
+        pam_conversation: UtpamConv,
+        confdir: PathBuf,
+        user: Option<String>,
+    ) -> Self {
         UtpamHandle {
             authtok: String::default(),
             pam_conversation,
@@ -108,7 +119,7 @@ impl UtpamHandle {
             choice: 0,
             audit_state: 0,
             authtok_verified: 0,
-            confdir: String::default(),
+            confdir,
         }
     }
 
@@ -153,7 +164,7 @@ pub struct Service {
     module: Option<Box<LoadedModule>>,
     modules_allocated: isize,
     modules_used: isize,
-    handlers_loaded: isize,
+    pub(super) handlers_loaded: isize,
     conf: Handlers,
     other: Handlers,
 }

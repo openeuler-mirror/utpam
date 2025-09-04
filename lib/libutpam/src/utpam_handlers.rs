@@ -3,12 +3,94 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
-#![allow(unused_variables)]
+use crate::common::{PAM_ABORT, PAM_SUCCESS};
+use crate::utpam::{UtpamHandle, UTPAM_CONFIG_D, UTPAM_CONFIG_DIST_D};
 
-use crate::common::PAM_SUCCESS;
-use crate::utpam::UtpamHandle;
+use std::fs::{metadata, File, OpenOptions};
+use std::path::PathBuf;
 
 pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> i32 {
-    //待开发
+    //如果所有内容都已加载，则立即返回
+    if utpamh.handlers.handlers_loaded != 0 {
+        return PAM_SUCCESS;
+    }
+
+    //PAM_LOCKING-检查子系统是否锁定：条件编译（最后处理）
+
+    //解析配置文件
+    let mut path: Option<PathBuf> = None;
+    let mut file: Option<File> = None;
+
+    if utpamh.confdir.exists()
+        || check_directory(UTPAM_CONFIG_D)
+        || check_directory(UTPAM_CONFIG_DIST_D)
+    {
+        //从配置文件中获取配置目录
+
+        if utpam_open_config_file(utpamh, utpamh.service_name.clone(), &mut path, &mut file)
+            == PAM_SUCCESS
+        {
+            //解析配置文件(待开发)
+        }
+    }
+
     PAM_SUCCESS
+}
+
+///检查指定路径是否存在且是目录
+fn check_directory(pamh_confdir: &str) -> bool {
+    metadata(pamh_confdir).map_or(false, |md| md.file_type().is_dir())
+}
+
+///打开配置文件
+fn utpam_open_config_file(
+    utpamh: &mut Box<UtpamHandle>,
+    service: String,
+    path: &mut Option<PathBuf>,
+    file: &mut Option<File>,
+) -> i32 {
+    let mut path_buf = PathBuf::new();
+
+    let dirs = [UTPAM_CONFIG_D, UTPAM_CONFIG_DIST_D];
+
+    //处理提供了绝对路径和配置目录的情况
+    if service.starts_with('/') {
+        path_buf = PathBuf::from(service.clone());
+    } else if utpamh.confdir.exists() {
+        path_buf = utpamh.confdir.join(service.clone());
+    }
+    if path_buf.is_file() {
+        let fd = OpenOptions::new().read(true).open(&path_buf);
+        match fd {
+            Ok(f) => {
+                *path = Some(path_buf);
+                *file = Some(f);
+                return PAM_SUCCESS;
+            }
+            Err(_) => {
+                return PAM_ABORT;
+            }
+        }
+    }
+
+    //打开默认配置目录下的文件
+    for dir in dirs {
+        let dir = PathBuf::from(dir);
+        path_buf = dir.join(service.clone());
+        if path_buf.exists() {
+            let fd = OpenOptions::new().read(true).open(&path_buf);
+            match fd {
+                Ok(f) => {
+                    *path = Some(path_buf);
+                    *file = Some(f);
+                    return PAM_SUCCESS;
+                }
+                Err(_) => {
+                    return PAM_ABORT;
+                }
+            }
+        }
+    }
+
+    PAM_ABORT
 }

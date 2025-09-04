@@ -9,6 +9,7 @@ use std::any::Any;
 
 pub const PAM_SUCCESS: i32 = 0;
 pub const PAM_SYSTEM_ERR: i32 = 4;
+pub const PAM_BUF_ERR: i32 = 5;
 
 pub const PAM_SESSION_ERR: i32 = 7;
 pub const PAM_ABORT: i32 = 26;

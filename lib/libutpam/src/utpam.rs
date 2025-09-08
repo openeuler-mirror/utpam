@@ -33,6 +33,8 @@ pub const UTPAM_CONFIG: &str = "/etc/utpam.conf";
 pub const UTPAM_CONFIG_D: &str = "/etc/utpam.d";
 pub const UTPAM_CONFIG_DIST_D: &str = "/usr/lib/utpam.d";
 
+pub const UTPAM_DEFAULT_SERVICE: &str = "other";
+
 pub struct UtpamHandle {
     pub(super) authtok: String,
     pub(super) pam_conversation: UtpamConv,

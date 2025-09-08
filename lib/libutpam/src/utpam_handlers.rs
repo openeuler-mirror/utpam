@@ -3,16 +3,26 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
-#![allow(unused_assignments)]
+#![allow(unused_variables, unused_assignments)]
 
-use crate::common::{PAM_ABORT, PAM_SUCCESS};
-use crate::utpam::{UtpamHandle, UTPAM_CONFIG_D, UTPAM_CONFIG_DIST_D};
-use crate::utpam_misc::utpam_tokenize;
+use crate::common::{PAM_ABORT, PAM_IGNORE, PAM_NEW_AUTHTOK_REQD, PAM_RETURN_VALUES, PAM_SUCCESS};
+use crate::utpam::{
+    UtpamHandle, PAM_ACTION_BAD, PAM_ACTION_DIE, PAM_ACTION_DONE, PAM_ACTION_IGNORE, PAM_ACTION_OK,
+    PAM_ACTION_UNDEF, PAM_HT_MODULE, PAM_HT_MUST_FAIL, PAM_HT_SILENT_MODULE, UTPAM_CONFIG_D,
+    UTPAM_CONFIG_DIST_D, UTPAM_DEFAULT_SERVICE,
+};
+use crate::utpam_misc::{utpam_parse_control, utpam_set_default_control, utpam_tokenize};
 use utpam_internal::utpam_line::{utpam_line_assemble, UtpamLineBuffer};
 
 use std::fs::{metadata, File, OpenOptions};
 use std::io::BufReader;
 use std::path::PathBuf;
+
+const PAM_T_ANY: i32 = 0;
+const PAM_T_AUTH: i32 = 1;
+const PAM_T_SESS: i32 = 2;
+const PAM_T_ACCT: i32 = 4;
+const PAM_T_PASS: i32 = 8;
 
 pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> i32 {
     //如果所有内容都已加载，则立即返回
@@ -115,26 +125,34 @@ fn utpam_open_config_file(
 
 //解析配置文件
 fn utpam_parse_config_file(
-    _utpamh: &mut Box<UtpamHandle>,
+    utpamh: &mut Box<UtpamHandle>,
     file: File,
     known_service: Option<String>,
-    _requested_module_type: i32,
+    requested_module_type: i32,
     _include_level: i32,
     _stack_level: i32,
-    _not_other: bool,
+    not_other: bool,
 ) -> i32 {
     let mut f = BufReader::new(file);
     let mut buffer = UtpamLineBuffer::default();
     let repl = String::from(" ");
     let mut tok = String::from("");
+    let mut handler_type = PAM_HT_MODULE;
+    let mut module_type;
+    let mut actions: Vec<i32> = vec![0; PAM_RETURN_VALUES];
 
     //逐行处理配置文件内容
     let mut x = utpam_line_assemble(&mut f, &mut buffer, repl.clone());
     while x > 0 {
+        let mut mod_path: Option<String> = None;
+        let mut nexttok: Option<String> = None;
         let mut buf = Some(buffer.assembled.as_str());
         //判断是否提供服务名称
-        let _this_service = match known_service {
-            Some(ref s) => s.clone(),
+        let this_service = match known_service {
+            Some(ref s) => {
+                nexttok = Some(s.clone());
+                s.clone()
+            }
             None => match utpam_tokenize(None, &mut buf) {
                 Some(s) => {
                     tok = s;
@@ -144,6 +162,138 @@ fn utpam_parse_config_file(
             },
         };
 
+        let other = if not_other {
+            false
+        } else {
+            this_service.eq_ignore_ascii_case(UTPAM_DEFAULT_SERVICE)
+        };
+
+        let accspt = this_service.eq_ignore_ascii_case(&utpamh.service_name.clone());
+
+        if !accspt || other {
+            let mut pam_include = false;
+            let mut substack = false;
+
+            match utpam_tokenize(None, &mut buf) {
+                Some(mut tok) => {
+                    if tok.starts_with('-') {
+                        handler_type = PAM_HT_SILENT_MODULE;
+                        tok = tok.strip_prefix('-').unwrap().to_string();
+                    }
+                    if tok.eq_ignore_ascii_case("auth") {
+                        module_type = PAM_T_AUTH;
+                    } else if tok.eq_ignore_ascii_case("session") {
+                        module_type = PAM_T_SESS;
+                    } else if tok.eq_ignore_ascii_case("account") {
+                        module_type = PAM_T_ACCT;
+                    } else if tok.eq_ignore_ascii_case("password") {
+                        module_type = PAM_T_PASS;
+                    } else {
+                        //无效的类型，日记记录
+                        module_type = if requested_module_type != PAM_T_ANY {
+                            requested_module_type
+                        } else {
+                            PAM_T_AUTH
+                        };
+
+                        handler_type = PAM_HT_MUST_FAIL;
+                    }
+                }
+                None => {
+                    //模块类型不存在，日记记录
+                    module_type = if requested_module_type != PAM_T_ANY {
+                        requested_module_type
+                    } else {
+                        PAM_T_AUTH
+                    };
+
+                    handler_type = PAM_HT_MUST_FAIL;
+                }
+            };
+            if requested_module_type != PAM_T_ANY && module_type != requested_module_type {
+                //日志记录
+                continue;
+            }
+
+            for item in actions.iter_mut().take(PAM_RETURN_VALUES) {
+                *item = PAM_ACTION_UNDEF;
+            }
+
+            //读取控制标志
+            match utpam_tokenize(None, &mut buf) {
+                Some(tok) => {
+                    //将tok转换为小写字母后进行匹配
+                    match tok.to_ascii_lowercase().as_str() {
+                        "required" => {
+                            actions[PAM_SUCCESS as usize] = PAM_ACTION_OK;
+                            actions[PAM_NEW_AUTHTOK_REQD as usize] = PAM_ACTION_OK;
+                            actions[PAM_IGNORE as usize] = PAM_ACTION_IGNORE;
+                            utpam_set_default_control(&mut actions, PAM_ACTION_BAD);
+                        }
+                        "requisite" => {
+                            actions[PAM_SUCCESS as usize] = PAM_ACTION_OK;
+                            actions[PAM_NEW_AUTHTOK_REQD as usize] = PAM_ACTION_OK;
+                            actions[PAM_IGNORE as usize] = PAM_ACTION_IGNORE;
+                            utpam_set_default_control(&mut actions, PAM_ACTION_DIE);
+                        }
+                        "optional" => {
+                            actions[PAM_SUCCESS as usize] = PAM_ACTION_OK;
+                            actions[PAM_NEW_AUTHTOK_REQD as usize] = PAM_ACTION_OK;
+                            actions[PAM_IGNORE as usize] = PAM_ACTION_IGNORE;
+                            utpam_set_default_control(&mut actions, PAM_ACTION_IGNORE);
+                        }
+                        "sufficient" => {
+                            actions[PAM_SUCCESS as usize] = PAM_ACTION_DONE;
+                            actions[PAM_NEW_AUTHTOK_REQD as usize] = PAM_ACTION_DONE;
+                            actions[PAM_IGNORE as usize] = PAM_ACTION_IGNORE;
+                            utpam_set_default_control(&mut actions, PAM_ACTION_IGNORE);
+                        }
+                        "include" => {
+                            pam_include = true;
+                            substack = false;
+                        }
+                        "substack" => {
+                            pam_include = true;
+                            substack = true;
+                        }
+                        _ => {
+                            //无效的控制标志，日志记录
+                            utpam_parse_control(&mut actions, &tok);
+                            utpam_set_default_control(&mut actions, PAM_ACTION_BAD);
+                        }
+                    }
+                }
+                None => {
+                    //日志记录
+                    utpam_set_default_control(&mut actions, PAM_ACTION_BAD);
+                    handler_type = PAM_HT_MUST_FAIL;
+                }
+            }
+
+            //读取调用路径或者认证模块
+            match utpam_tokenize(None, &mut buf) {
+                Some(tok) => {
+                    if pam_include {
+                        if substack {
+                            //pam_add_handler函数  --待开发
+                        }
+                        //_pam_load_conf_file函数  --待开发
+                        utpam_set_default_control(&mut actions, PAM_ACTION_BAD);
+                        mod_path = None;
+                        handler_type = PAM_HT_MUST_FAIL;
+                        nexttok = None;
+                    } else {
+                        mod_path = Some(tok);
+                    }
+                }
+                None => {
+                    //没有给出模块名称
+                    // 日志记录
+                    mod_path = None;
+                    handler_type = PAM_HT_MUST_FAIL;
+                }
+            }
+        }
         //更新循环
         x = utpam_line_assemble(&mut f, &mut buffer, repl.clone());
     }

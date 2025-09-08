@@ -14,6 +14,21 @@ use std::path::PathBuf;
 pub const PAM_NOT_STACKED: i32 = 0;
 pub const PAM_AUTHENTICATE: i32 = 1;
 
+pub const PAM_HT_MODULE: i32 = 0;
+pub const PAM_HT_MUST_FAIL: i32 = 1;
+pub const PAM_HT_SUBSTACK: i32 = 2;
+pub const PAM_HT_SILENT_MODULE: i32 = 3;
+
+pub const PAM_ACTION_IGNORE: i32 = 0;
+pub const PAM_ACTION_OK: i32 = -1;
+pub const PAM_ACTION_DONE: i32 = -2;
+pub const PAM_ACTION_BAD: i32 = -3;
+pub const PAM_ACTION_DIE: i32 = -4;
+pub const PAM_ACTION_RESET: i32 = -5;
+pub const PAM_ACTION_UNDEF: i32 = -6;
+
+pub const PAM_SUBSTACK_MAX_LEVEL: i32 = 16;
+
 pub const UTPAM_CONFIG: &str = "/etc/utpam.conf";
 pub const UTPAM_CONFIG_D: &str = "/etc/utpam.d";
 pub const UTPAM_CONFIG_DIST_D: &str = "/usr/lib/utpam.d";

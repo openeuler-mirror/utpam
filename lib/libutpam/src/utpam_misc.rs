@@ -4,6 +4,18 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 ///一些辅助函数
+use crate::common::{PAM_RETURN_VALUES, PAM_TOKEN_ACTIONS, PAM_TOKEN_RETURNS};
+use crate::utpam::PAM_ACTION_UNDEF;
+
+//设置control_array数组的值并退出
+macro_rules! set_and_break {
+    ($array:expr) => {{
+        for elem in $array.iter_mut() {
+            *elem = -3;
+        }
+        return;
+    }};
+}
 
 const DELIMITERS: &[char] = &[' ', '\t', '\n'];
 //从给定的字符串中提取标记
@@ -65,4 +77,107 @@ pub fn utpam_tokenize<'a>(from: Option<&'a str>, next: &mut Option<&'a str>) -> 
     }
 
     Some(token.to_string())
+}
+
+//设置默认控制，即未指定的返回码使用默认动作
+pub fn utpam_set_default_control(control_array: &mut [i32], default_action: i32) {
+    for item in control_array.iter_mut().take(PAM_RETURN_VALUES) {
+        if *item == PAM_ACTION_UNDEF {
+            *item = default_action;
+        }
+    }
+}
+
+// 解析控制字符串tok，并更新control_array中的元素
+pub fn utpam_parse_control(control_array: &mut [i32], mut tok: &str) {
+    while !tok.is_empty() {
+        // 去除空格，如果为空，则退出
+        tok = tok.trim_start();
+        if tok.is_empty() {
+            break;
+        }
+
+        //遍历PAM_TOKEN_RETURNS数组，匹配返回码，并更新tok
+        let mut ret = 0;
+        for token in PAM_TOKEN_RETURNS.iter() {
+            let len = token.len();
+            if tok.starts_with(token) {
+                tok = &tok[len..].trim_start();
+                break;
+            }
+            ret += 1;
+        }
+
+        //如果没有匹配到返回码，或者tok为空，则退出
+        if ret > PAM_RETURN_VALUES || tok.is_empty() {
+            println!("expecting return values");
+            set_and_break!(control_array);
+        }
+
+        // tok应该以'='开头，否则退出
+        match tok.trim_start().chars().next() {
+            Some(s) => {
+                if s == '=' {
+                    tok = &tok[1..].trim_start();
+                } else {
+                    println!("expecting '='");
+                    set_and_break!(control_array);
+                }
+            }
+            None => {
+                println!("expecting action");
+                set_and_break!(control_array);
+            }
+        }
+
+        // 遍历PAM_TOKEN_ACTIONS数组，匹配动作，并更新tok
+        let mut act: i32 = 0;
+        for token in PAM_TOKEN_ACTIONS.iter() {
+            let len = token.len();
+            if tok.starts_with(token) {
+                tok = &tok[len..].trim_start();
+                break;
+            }
+            act += 1;
+        }
+
+        // 处理跳转
+        if act > 0 {
+            act = 0;
+            for ch in tok.chars() {
+                match ch.to_digit(10) {
+                    Some(digit) => {
+                        // 将字符串转换为数字，并检查是否溢出
+                        match act
+                            .checked_mul(10)
+                            .and_then(|new_act| new_act.checked_add(digit as i32))
+                        {
+                            Some(new_act) => act = new_act,
+                            None => {
+                                println!("expecting smaller jump number");
+                                set_and_break!(control_array);
+                            }
+                        }
+                    }
+                    None => {
+                        break;
+                    }
+                };
+                tok = &tok[1..].trim_start();
+            }
+
+            if act == 0 {
+                println!("expecting non-zero");
+                set_and_break!(control_array);
+            }
+        }
+
+        //设置control_array元素
+        if ret != PAM_RETURN_VALUES {
+            control_array[ret] = act;
+        } else {
+            //将默认值设置为“act”
+            utpam_set_default_control(control_array, act);
+        }
+    }
 }

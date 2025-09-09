@@ -6,11 +6,7 @@
 #![allow(unused_variables, unused_assignments)]
 
 use crate::common::{PAM_ABORT, PAM_IGNORE, PAM_NEW_AUTHTOK_REQD, PAM_RETURN_VALUES, PAM_SUCCESS};
-use crate::utpam::{
-    UtpamHandle, PAM_ACTION_BAD, PAM_ACTION_DIE, PAM_ACTION_DONE, PAM_ACTION_IGNORE, PAM_ACTION_OK,
-    PAM_ACTION_UNDEF, PAM_HT_MODULE, PAM_HT_MUST_FAIL, PAM_HT_SILENT_MODULE, UTPAM_CONFIG_D,
-    UTPAM_CONFIG_DIST_D, UTPAM_DEFAULT_SERVICE,
-};
+use crate::utpam::*;
 use crate::utpam_misc::{utpam_parse_control, utpam_set_default_control, utpam_tokenize};
 use utpam_internal::utpam_line::{utpam_line_assemble, UtpamLineBuffer};
 
@@ -123,14 +119,71 @@ fn utpam_open_config_file(
     PAM_ABORT
 }
 
+//加载并解析指定的配置文件
+fn utpam_load_conf_file(
+    utpamh: &mut Box<UtpamHandle>,
+    config_name: Option<String>,
+    service: Option<String>,
+    module_type: i32,
+    include_level: i32,
+    stack_level: i32,
+    not_other: bool,
+) -> i32 {
+    let mut file: Option<File> = None;
+    let mut path: Option<PathBuf> = None;
+    let mut retval: i32 = PAM_ABORT;
+
+    //检查是否超过了最大允许的嵌套层次
+    if include_level >= PAM_SUBSTACK_MAX_LEVEL {
+        //日记记录
+        println!("maximum level of inclusions reached");
+        return PAM_ABORT;
+    }
+
+    //检查配置文件名
+    let config_name = match config_name {
+        Some(name) => name,
+        None => {
+            //日记记录
+            println!("no config file supplied");
+            return PAM_ABORT;
+        }
+    };
+
+    //打开配置文件
+    if utpam_open_config_file(utpamh, config_name.clone(), &mut path, &mut file) == PAM_SUCCESS {
+        //解析配置文件
+        retval = utpam_parse_config_file(
+            utpamh,
+            file.unwrap(),
+            service,
+            module_type,
+            include_level,
+            stack_level,
+            not_other,
+        );
+        if retval != PAM_SUCCESS {
+            //日记记录
+            println!("utpam_load_conf_file: error reading {:?}", path)
+        }
+    } else {
+        //日记记录
+        println!(
+            "utpam_load_conf_file: unable to open config for {}",
+            config_name.clone()
+        )
+    }
+    retval
+}
+
 //解析配置文件
 fn utpam_parse_config_file(
     utpamh: &mut Box<UtpamHandle>,
     file: File,
     known_service: Option<String>,
     requested_module_type: i32,
-    _include_level: i32,
-    _stack_level: i32,
+    include_level: i32,
+    stack_level: i32,
     not_other: bool,
 ) -> i32 {
     let mut f = BufReader::new(file);
@@ -171,8 +224,8 @@ fn utpam_parse_config_file(
         let accspt = this_service.eq_ignore_ascii_case(&utpamh.service_name.clone());
 
         if !accspt || other {
-            let mut pam_include = false;
-            let mut substack = false;
+            let mut pam_include = 0;
+            let mut substack = 0;
 
             match utpam_tokenize(None, &mut buf) {
                 Some(mut tok) => {
@@ -249,12 +302,12 @@ fn utpam_parse_config_file(
                             utpam_set_default_control(&mut actions, PAM_ACTION_IGNORE);
                         }
                         "include" => {
-                            pam_include = true;
-                            substack = false;
+                            pam_include = 1;
+                            substack = 0;
                         }
                         "substack" => {
-                            pam_include = true;
-                            substack = true;
+                            pam_include = 1;
+                            substack = 1;
                         }
                         _ => {
                             //无效的控制标志，日志记录
@@ -273,11 +326,24 @@ fn utpam_parse_config_file(
             //读取调用路径或者认证模块
             match utpam_tokenize(None, &mut buf) {
                 Some(tok) => {
-                    if pam_include {
-                        if substack {
+                    if pam_include == 1 {
+                        if substack == 1 {
                             //pam_add_handler函数  --待开发
                         }
-                        //_pam_load_conf_file函数  --待开发
+                        if utpam_load_conf_file(
+                            utpamh,
+                            Some(tok),
+                            Some(this_service),
+                            module_type,
+                            include_level + 1,
+                            stack_level + substack,
+                            not_other,
+                        ) == PAM_SUCCESS
+                        {
+                            println!("include success");
+                            //continue;
+                        }
+
                         utpam_set_default_control(&mut actions, PAM_ACTION_BAD);
                         mod_path = None;
                         handler_type = PAM_HT_MUST_FAIL;

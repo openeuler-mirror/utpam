@@ -5,7 +5,7 @@
  */
 #![allow(dead_code, unused_mut, unused_variables)]
 ///存放libutpam的私有结构体和常量
-use crate::common::{UtpamConv, UtpamXAuthData};
+use crate::common::{UtpamConv, UtpamXAuthData, PAM_RETURN_VALUES};
 use crate::utpam_delay::UtpamFailDelay;
 use crate::utpam_env::UtpamEnviron;
 
@@ -198,27 +198,27 @@ struct Handlers {
     close_session: Option<Box<Handler>>,
     chauthtok: Option<Box<Handler>>,
 }
-trait Func {
-    fn func(
-        &self,
-        utpamh: &mut Option<Box<UtpamHandle>>,
-        flags: isize,
-        argc: isize,
-        argv: &[&str],
-    ) -> isize;
-}
-struct Handler {
-    handler_type: isize,
-    cleanup: Option<Box<dyn Func>>,
-    actions: [isize; 32],
-    cached_retval: isize,
-    cached_retval_p: Option<*mut isize>,
-    argc: isize,
-    argv: Vec<String>,
-    next: Option<Box<Handler>>,
-    mod_name: String,
-    stack_level: isize,
-    grantor: isize,
+
+//定义类型别名CallSpi
+pub type CallSpi = fn(
+    utpamh: &mut Option<Box<UtpamHandle>>,
+    flags: i32,
+    argc: Option<i32>,
+    argv: Option<Vec<String>>,
+) -> i32;
+
+pub struct Handler {
+    pub(super) handler_type: isize,
+    pub(super) cleanup: CallSpi,
+    pub(super) actions: [isize; PAM_RETURN_VALUES],
+    pub(super) cached_retval: isize,
+    pub(super) cached_retval_p: Option<*mut isize>,
+    pub(super) argc: isize,
+    pub(super) argv: Vec<String>,
+    pub(super) next: Option<Box<Handler>>,
+    pub(super) mod_name: String,
+    pub(super) stack_level: isize,
+    pub(super) grantor: isize,
 }
 
 struct UtpamSubstackState {

@@ -1,8 +1,3 @@
-/*
- * SPDX-FileCopyrightText: 2025 UnionTech Software Technology Co., Ltd.
- *
- * SPDX-License-Identifier: GPL-2.0-or-later
- */
 #![allow(dead_code, unused_mut, unused_variables)]
 ///存放libutpam的私有结构体和常量
 use crate::common::{UtpamConv, UtpamXAuthData, PAM_RETURN_VALUES};

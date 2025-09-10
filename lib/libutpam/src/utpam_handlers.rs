@@ -1,8 +1,3 @@
-/*
- * SPDX-FileCopyrightText: 2025 UnionTech Software Technology Co., Ltd.
- *
- * SPDX-License-Identifier: GPL-2.0-or-later
- */
 #![allow(unused_variables, unused_assignments, dead_code)]
 
 use crate::common::{PAM_ABORT, PAM_IGNORE, PAM_NEW_AUTHTOK_REQD, PAM_RETURN_VALUES, PAM_SUCCESS};
@@ -367,6 +362,28 @@ fn utpam_parse_config_file(
         x = utpam_line_assemble(&mut f, &mut buffer, repl.clone());
     }
     0
+}
+
+///从模块路径中提取模块名称，如果路径无效则返回 None
+fn extract_modulename(mod_path: &str) -> Option<String> {
+    //如果路径为空
+    if mod_path.trim().is_empty() {
+        return None;
+    }
+    let path = PathBuf::from(mod_path);
+    let file_stem = path.file_stem(); // 获取文件名（不包括扩展名）
+
+    let file_stem_str = match file_stem {
+        Some(stem) => stem.to_str()?,
+        None => return None,
+    };
+
+    //检查路径是否有效
+    if file_stem_str.is_empty() || file_stem_str == "?" {
+        return None;
+    }
+
+    Some(file_stem_str.into())
 }
 
 //加载模块

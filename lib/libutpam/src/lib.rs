@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: 2025 UnionTech Software Technology Co., Ltd.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 pub mod common;
 pub mod parse;
 pub mod utpam;
@@ -12,3 +17,4 @@ pub mod utpam_handlers;
 pub mod utpam_item;
 pub mod utpam_misc;
 pub mod utpam_start;
+pub mod utpam_strerror;

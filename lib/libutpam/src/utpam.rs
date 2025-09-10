@@ -1,6 +1,11 @@
+/*
+ * SPDX-FileCopyrightText: 2025 UnionTech Software Technology Co., Ltd.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 #![allow(dead_code, unused_mut, unused_variables)]
 ///存放libutpam的私有结构体和常量
-use crate::common::{UtpamConv, UtpamXAuthData, PAM_RETURN_VALUES};
+use crate::common::{UtpamConv, UtpamXAuthData};
 use crate::utpam_delay::UtpamFailDelay;
 use crate::utpam_env::UtpamEnviron;
 
@@ -28,6 +33,8 @@ pub const PAM_ACTION_RESET: i32 = -5;
 pub const PAM_ACTION_UNDEF: i32 = -6;
 
 pub const PAM_SUBSTACK_MAX_LEVEL: i32 = 16;
+
+pub const _PAM_INVALID_RETVAL: i32 = -1;
 
 pub const UTPAM_CONFIG: &str = "/etc/utpam.conf";
 pub const UTPAM_CONFIG_D: &str = "/etc/utpam.d";
@@ -103,20 +110,20 @@ impl UtpamHandle {
                 modules_used: 0,
                 handlers_loaded: 0,
                 conf: Handlers {
-                    authenticate: None,
-                    setcred: None,
-                    acct_mgmt: None,
-                    open_session: None,
-                    close_session: None,
-                    chauthtok: None,
+                    authenticate: vec![],
+                    setcred: vec![],
+                    acct_mgmt: vec![],
+                    open_session: vec![],
+                    close_session: vec![],
+                    chauthtok: vec![],
                 },
                 other: Handlers {
-                    authenticate: None,
-                    setcred: None,
-                    acct_mgmt: None,
-                    open_session: None,
-                    close_session: None,
-                    chauthtok: None,
+                    authenticate: vec![],
+                    setcred: vec![],
+                    acct_mgmt: vec![],
+                    open_session: vec![],
+                    close_session: vec![],
+                    chauthtok: vec![],
                 },
             },
             former: UtpamFormerState {
@@ -192,14 +199,14 @@ pub struct LoadedModule {
     pub(super) dl_handle: Option<Library>,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Handlers {
-    pub(super) authenticate: Option<Box<Handler>>,
-    pub(super) setcred: Option<Box<Handler>>,
-    pub(super) acct_mgmt: Option<Box<Handler>>,
-    pub(super) open_session: Option<Box<Handler>>,
-    pub(super) close_session: Option<Box<Handler>>,
-    pub(super) chauthtok: Option<Box<Handler>>,
+    pub(super) authenticate: Vec<Handler>,
+    pub(super) setcred: Vec<Handler>,
+    pub(super) acct_mgmt: Vec<Handler>,
+    pub(super) open_session: Vec<Handler>,
+    pub(super) close_session: Vec<Handler>,
+    pub(super) chauthtok: Vec<Handler>,
 }
 
 //定义类型别名CallSpi
@@ -210,18 +217,18 @@ pub type CallSpi = fn(
     argv: Option<Vec<String>>,
 ) -> i32;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Handler {
-    pub(super) handler_type: isize,
-    pub(super) cleanup: CallSpi,
-    pub(super) actions: [isize; PAM_RETURN_VALUES],
-    pub(super) cached_retval: isize,
-    pub(super) cached_retval_p: Option<*mut isize>,
-    pub(super) argc: isize,
-    pub(super) argv: Vec<String>,
+    pub(super) handler_type: i32,
+    pub(super) cleanup: Option<CallSpi>,
+    pub(super) actions: Vec<i32>,
+    pub(super) cached_retval: i32,
+    pub(super) cached_retval_p: Option<*mut isize>, //待定
+    pub(super) argc: i32,
+    pub(super) argv: Option<Vec<String>>,
     pub(super) next: Option<Box<Handler>>,
     pub(super) mod_name: String,
-    pub(super) stack_level: isize,
+    pub(super) stack_level: i32,
     pub(super) grantor: isize,
 }
 

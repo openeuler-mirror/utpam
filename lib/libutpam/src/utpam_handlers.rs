@@ -1,9 +1,19 @@
-#![allow(unused_variables, unused_assignments, dead_code)]
+/*
+ * SPDX-FileCopyrightText: 2025 UnionTech Software Technology Co., Ltd.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+#![allow(
+    unused_variables,
+    unused_assignments,
+    dead_code,
+    clippy::too_many_arguments
+)]
 
 use crate::common::{PAM_ABORT, PAM_IGNORE, PAM_NEW_AUTHTOK_REQD, PAM_RETURN_VALUES, PAM_SUCCESS};
 use crate::utpam::*;
 
-use crate::utpam_dynamic::utpam_dlopen;
+use crate::utpam_dynamic::{utpam_dlopen, utpam_dlsym};
 use crate::utpam_misc::{utpam_parse_control, utpam_set_default_control, utpam_tokenize};
 use std::env::consts::ARCH;
 use utpam_internal::utpam_line::{utpam_line_assemble, UtpamLineBuffer};
@@ -17,6 +27,9 @@ const PAM_T_AUTH: i32 = 1;
 const PAM_T_SESS: i32 = 2;
 const PAM_T_ACCT: i32 = 4;
 const PAM_T_PASS: i32 = 8;
+
+const UNKNOWN_MODULE: &str = "unknown module";
+const DEFAULT_MODULE_PATH: &str = "/lib64/security";
 
 pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> i32 {
     //如果所有内容都已加载，则立即返回
@@ -198,6 +211,8 @@ fn utpam_parse_config_file(
         let mut mod_path: Option<String> = None;
         let mut nexttok: Option<String> = None;
         let mut buf = Some(buffer.assembled.as_str());
+        let mut res = 0;
+
         //判断是否提供服务名称
         let this_service = match known_service {
             Some(ref s) => {
@@ -326,11 +341,22 @@ fn utpam_parse_config_file(
                 Some(tok) => {
                     if pam_include == 1 {
                         if substack == 1 {
-                            //pam_add_handler函数  --待开发
+                            res = utpam_add_handler(
+                                utpamh,
+                                PAM_HT_SUBSTACK,
+                                other,
+                                stack_level,
+                                module_type,
+                                &mut actions,
+                                Some(tok.clone()),
+                                0,
+                                None,
+                                0,
+                            );
                         }
                         if utpam_load_conf_file(
                             utpamh,
-                            Some(tok),
+                            Some(tok.clone()),
                             Some(this_service),
                             module_type,
                             include_level + 1,
@@ -357,6 +383,21 @@ fn utpam_parse_config_file(
                     handler_type = PAM_HT_MUST_FAIL;
                 }
             }
+
+            //let s = mod_path.unwrap();
+
+            res = utpam_add_handler(
+                utpamh,
+                handler_type,
+                other,
+                stack_level,
+                module_type,
+                &mut actions,
+                mod_path,
+                0,
+                None,
+                0,
+            );
         }
         //更新循环
         x = utpam_line_assemble(&mut f, &mut buffer, repl.clone());
@@ -391,7 +432,7 @@ fn utpam_load_module(
     utpamh: &mut Vec<LoadedModule>,
     mod_path: String,
     handler_type: i32,
-) -> &LoadedModule {
+) -> Option<&LoadedModule> {
     let mods = utpamh;
 
     //遍历模块列表，检查是否存在mod_path模块。
@@ -400,7 +441,7 @@ fn utpam_load_module(
     match x {
         Some(index) => {
             //直接返回匹配到的模块
-            &mods[index]
+            Some(&mods[index])
         }
         None => {
             /*处理没有匹配到模块的情况*/
@@ -437,10 +478,12 @@ fn utpam_load_module(
                             Err(e) => {
                                 println!("Error loading module: {}", e);
                                 if handler_type != PAM_HT_SILENT_MODULE {
-                                    println!("unable to dlopen");
+                                    println!("{}", e);
                                 }
                             }
                         };
+                    } else {
+                        println!("{}", e);
                     }
                 }
             };
@@ -450,7 +493,159 @@ fn utpam_load_module(
             mods.push(newmod);
 
             //返回新模块
-            &mods[index]
+            Some(&mods[index])
         }
     }
+}
+
+//添加处理程序
+fn utpam_add_handler(
+    utpamh: &mut Box<UtpamHandle>,
+    handler_type: i32,
+    other: bool,
+    stack_level: i32,
+    module_type: i32,
+    actions: &mut [i32],
+    mod_path: Option<String>,
+    argc: i32,
+    argv: Option<Vec<String>>,
+    _argvlen: isize,
+) -> i32 {
+    let mut load_module = None;
+
+    let mut mod_type: i32 = PAM_MT_FAULTY_MOD;
+
+    //处理模块路径
+    let mod_path = match mod_path {
+        Some(s) => s,
+        None => UNKNOWN_MODULE.to_string(),
+    };
+
+    //根据模块路径获取模块类型
+    if handler_type == PAM_HT_MODULE || handler_type == PAM_HT_SILENT_MODULE {
+        let new_path = PathBuf::from(DEFAULT_MODULE_PATH).join(&mod_path);
+        if mod_path.starts_with('/') {
+            load_module = utpam_load_module(
+                &mut utpamh.handlers.module,
+                mod_path.to_string(),
+                handler_type,
+            );
+        } else if new_path.exists() {
+            load_module = utpam_load_module(
+                &mut utpamh.handlers.module,
+                new_path.to_string_lossy().to_string(),
+                handler_type,
+            );
+        } else {
+            println!("cannot malloc full mod path");
+            return PAM_ABORT;
+        }
+    }
+
+    //如果模块加载失败，则返回PAM_ABORT
+    let load_module = match load_module {
+        Some(m) => {
+            mod_type = m.moule_type;
+            m
+        }
+        None => return PAM_ABORT,
+    };
+
+    //决定使用哪个处理程序列表
+    let the_handlers = if other {
+        &mut utpamh.handlers.other
+    } else {
+        &mut utpamh.handlers.conf
+    };
+
+    //匹配处理程序类型
+    let (handler_p, sym, handler_p2, sym2) = match module_type {
+        PAM_T_AUTH => (
+            &mut the_handlers.authenticate,
+            "utpam_sm_authenticate",
+            Some(&mut the_handlers.setcred),
+            "utpam_sm_setcred",
+        ),
+        PAM_T_SESS => (
+            &mut the_handlers.open_session,
+            "utpam_sm_open_session",
+            Some(&mut the_handlers.close_session),
+            "utpam_sm_close_session",
+        ),
+        PAM_T_ACCT => (&mut the_handlers.acct_mgmt, "utpam_sm_acct_mgmt", None, ""),
+        PAM_T_PASS => (&mut the_handlers.chauthtok, "utpam_sm_chauthtok", None, ""),
+        _ => return PAM_ABORT,
+    };
+
+    if mod_type != PAM_MT_DYNAMIC_MOD && mod_type != PAM_MT_FAULTY_MOD {
+        println!("internal error: module library type not known");
+        return PAM_ABORT;
+    }
+
+    let handle = match load_module.dl_handle {
+        Some(ref s) => s,
+        None => {
+            println!("unable to dlopen");
+            return PAM_ABORT;
+        }
+    };
+
+    // 获取函数指针
+    match utpam_dlsym(handle, sym.as_bytes()) {
+        Ok(func) => {
+            let path = match extract_modulename(&mod_path) {
+                Some(mod_name) => mod_name,
+                None => return PAM_ABORT,
+            };
+
+            // 创建并添加Handler
+            handler_p.push(Handler {
+                handler_type,
+                cleanup: Some(*func),
+                actions: actions.to_owned(),
+                cached_retval: _PAM_INVALID_RETVAL,
+                cached_retval_p: None, //待定
+                argc,
+                argv: argv.clone(),
+                next: None,
+                mod_name: path,
+                stack_level,
+                grantor: 0,
+            });
+        }
+        Err(e) => {
+            println!("{}", e);
+            return PAM_ABORT;
+        }
+    }
+
+    if !sym2.is_empty() {
+        match utpam_dlsym(handle, sym2.as_bytes()) {
+            Ok(func) => {
+                let path = match extract_modulename(&mod_path) {
+                    Some(mod_name) => mod_name,
+                    None => return PAM_ABORT,
+                };
+                handler_p2.unwrap().push(Handler {
+                    handler_type,
+                    cleanup: Some(*func),
+                    actions: actions.to_owned(),
+                    cached_retval: _PAM_INVALID_RETVAL,
+                    cached_retval_p: None, //待定
+                    argc,
+                    argv: argv.clone(),
+                    next: None,
+                    mod_name: path,
+                    stack_level,
+                    grantor: 0,
+                });
+            }
+            Err(e) => {
+                println!("{}", e);
+                return PAM_ABORT;
+            }
+        }
+    }
+
+    PAM_SUCCESS
 }

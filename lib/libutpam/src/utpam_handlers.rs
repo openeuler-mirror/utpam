@@ -3,11 +3,14 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
-#![allow(unused_variables, unused_assignments)]
+#![allow(unused_variables, unused_assignments, dead_code)]
 
 use crate::common::{PAM_ABORT, PAM_IGNORE, PAM_NEW_AUTHTOK_REQD, PAM_RETURN_VALUES, PAM_SUCCESS};
 use crate::utpam::*;
+
+use crate::utpam_dynamic::utpam_dlopen;
 use crate::utpam_misc::{utpam_parse_control, utpam_set_default_control, utpam_tokenize};
+use std::env::consts::ARCH;
 use utpam_internal::utpam_line::{utpam_line_assemble, UtpamLineBuffer};
 
 use std::fs::{metadata, File, OpenOptions};
@@ -364,4 +367,73 @@ fn utpam_parse_config_file(
         x = utpam_line_assemble(&mut f, &mut buffer, repl.clone());
     }
     0
+}
+
+//加载模块
+fn utpam_load_module(
+    utpamh: &mut Vec<LoadedModule>,
+    mod_path: String,
+    handler_type: i32,
+) -> &LoadedModule {
+    let mods = utpamh;
+
+    //遍历模块列表，检查是否存在mod_path模块。
+    let x = mods.iter().position(|m| m.name == mod_path);
+
+    match x {
+        Some(index) => {
+            //直接返回匹配到的模块
+            &mods[index]
+        }
+        None => {
+            /*处理没有匹配到模块的情况*/
+
+            //创建一个新的模块
+            let mut newmod = LoadedModule {
+                name: mod_path.clone(),
+                moule_type: 0,
+                dl_handle: None,
+            };
+
+            //加载模块
+            match utpam_dlopen(mod_path.clone().to_string()) {
+                Ok(handle) => newmod.dl_handle = Some(handle),
+                Err(e) => {
+                    println!("Error loading module: {}", e);
+
+                    //处理带有占位符的路径字符串，并根据具体的架构替换占位符以加载正确的动态库
+                    let isa_pos = mod_path.find("$ISA");
+                    if let Some(isa_index) = isa_pos {
+                        let target_arch = match ARCH {
+                            "x86_64" => "x86_64",
+                            "aarch64" => "aarch64",
+                            _ => panic!("Unsupported architecture"),
+                        };
+                        let real_mod_path = mod_path.replace("$ISA", target_arch);
+
+                        //重新加载模块
+                        match utpam_dlopen(real_mod_path) {
+                            Ok(handle) => {
+                                newmod.moule_type = PAM_MT_DYNAMIC_MOD;
+                                newmod.dl_handle = Some(handle);
+                            }
+                            Err(e) => {
+                                println!("Error loading module: {}", e);
+                                if handler_type != PAM_HT_SILENT_MODULE {
+                                    println!("unable to dlopen");
+                                }
+                            }
+                        };
+                    }
+                }
+            };
+
+            //添加到模块列表
+            let index = mods.len();
+            mods.push(newmod);
+
+            //返回新模块
+            &mods[index]
+        }
+    }
 }

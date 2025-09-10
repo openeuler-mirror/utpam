@@ -9,7 +9,12 @@ use crate::common::{UtpamConv, UtpamXAuthData, PAM_RETURN_VALUES};
 use crate::utpam_delay::UtpamFailDelay;
 use crate::utpam_env::UtpamEnviron;
 
+use libloading::Library;
 use std::path::PathBuf;
+
+pub const PAM_MT_DYNAMIC_MOD: i32 = 0;
+pub const PAM_MT_STATIC_MOD: i32 = 1;
+pub const PAM_MT_FAULTY_MOD: i32 = 2;
 
 pub const PAM_NOT_STACKED: i32 = 0;
 pub const PAM_AUTHENTICATE: i32 = 1;
@@ -98,7 +103,7 @@ impl UtpamHandle {
                 data: vec![],
             },
             handlers: Service {
-                module: None,
+                module: vec![],
                 modules_allocated: 0,
                 modules_used: 0,
                 handlers_loaded: 0,
@@ -178,25 +183,28 @@ impl UtpamBoolean {
 }
 
 pub struct Service {
-    module: Option<Box<LoadedModule>>,
-    modules_allocated: isize,
-    modules_used: isize,
+    pub(super) module: Vec<LoadedModule>,
+    pub(super) modules_allocated: isize,
+    pub(super) modules_used: i32,
     pub(super) handlers_loaded: isize,
-    conf: Handlers,
-    other: Handlers,
+    pub(super) conf: Handlers,
+    pub(super) other: Handlers,
 }
-struct LoadedModule {
-    name: String,
-    type_: isize,       // 使用type_来避免与Rust关键字冲突
-    dl_handle: *mut (), //待定
+
+pub struct LoadedModule {
+    pub(super) name: String,
+    pub(super) moule_type: i32,
+    pub(super) dl_handle: Option<Library>,
 }
-struct Handlers {
-    authenticate: Option<Box<Handler>>,
-    setcred: Option<Box<Handler>>,
-    acct_mgmt: Option<Box<Handler>>,
-    open_session: Option<Box<Handler>>,
-    close_session: Option<Box<Handler>>,
-    chauthtok: Option<Box<Handler>>,
+
+#[derive(Clone)]
+pub struct Handlers {
+    pub(super) authenticate: Option<Box<Handler>>,
+    pub(super) setcred: Option<Box<Handler>>,
+    pub(super) acct_mgmt: Option<Box<Handler>>,
+    pub(super) open_session: Option<Box<Handler>>,
+    pub(super) close_session: Option<Box<Handler>>,
+    pub(super) chauthtok: Option<Box<Handler>>,
 }
 
 //定义类型别名CallSpi
@@ -207,6 +215,7 @@ pub type CallSpi = fn(
     argv: Option<Vec<String>>,
 ) -> i32;
 
+#[derive(Clone)]
 pub struct Handler {
     pub(super) handler_type: isize,
     pub(super) cleanup: CallSpi,

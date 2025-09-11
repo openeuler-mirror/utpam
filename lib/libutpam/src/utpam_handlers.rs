@@ -14,7 +14,9 @@ use crate::common::{PAM_ABORT, PAM_IGNORE, PAM_NEW_AUTHTOK_REQD, PAM_RETURN_VALU
 use crate::utpam::*;
 
 use crate::utpam_dynamic::{utpam_dlopen, utpam_dlsym};
-use crate::utpam_misc::{utpam_parse_control, utpam_set_default_control, utpam_tokenize};
+use crate::utpam_misc::{
+    utpam_mkargv, utpam_parse_control, utpam_set_default_control, utpam_tokenize,
+};
 use std::env::consts::ARCH;
 use utpam_internal::utpam_line::{utpam_line_assemble, UtpamLineBuffer};
 
@@ -52,7 +54,7 @@ pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> i32 {
         if utpam_open_config_file(utpamh, utpamh.service_name.clone(), &mut path, &mut file)
             == PAM_SUCCESS
         {
-            //解析配置文件(待开发)
+            //解析配置文件
             utpam_parse_config_file(
                 utpamh,
                 file.unwrap(),
@@ -212,11 +214,13 @@ fn utpam_parse_config_file(
         let mut nexttok: Option<String> = None;
         let mut buf = Some(buffer.assembled.as_str());
         let mut res = 0;
+        let mut argc = 0;
+        let mut argv: Vec<String> = vec![];
 
         //判断是否提供服务名称
         let this_service = match known_service {
             Some(ref s) => {
-                nexttok = Some(s.clone());
+                //nexttok = Some(s.clone());
                 s.clone()
             }
             None => match utpam_tokenize(None, &mut buf) {
@@ -348,11 +352,14 @@ fn utpam_parse_config_file(
                                 stack_level,
                                 module_type,
                                 &mut actions,
-                                Some(tok.clone()),
-                                0,
-                                None,
-                                0,
+                                &Some(tok.clone()),
+                                argc,
+                                &argv,
                             );
+                            if res != PAM_SUCCESS {
+                                println!("failed to load module - aborting");
+                                return PAM_ABORT;
+                            }
                         }
                         if utpam_load_conf_file(
                             utpamh,
@@ -384,7 +391,12 @@ fn utpam_parse_config_file(
                 }
             }
 
-            //let s = mod_path.unwrap();
+            if let Some(buf) = buf {
+                if utpam_mkargv(buf, &mut argv, &mut argc) == 0 {
+                    mod_path = None;
+                    handler_type = PAM_HT_MUST_FAIL;
+                }
+            }
 
             res = utpam_add_handler(
                 utpamh,
@@ -393,16 +405,24 @@ fn utpam_parse_config_file(
                 stack_level,
                 module_type,
                 &mut actions,
-                mod_path,
-                0,
-                None,
-                0,
+                &mod_path,
+                argc,
+                &argv,
             );
+            if res != PAM_SUCCESS {
+                println!("error loading: {:?}", mod_path);
+                return PAM_ABORT;
+            }
         }
         //更新循环
         x = utpam_line_assemble(&mut f, &mut buffer, repl.clone());
     }
-    0
+
+    if x < 0 {
+        PAM_ABORT
+    } else {
+        PAM_SUCCESS
+    }
 }
 
 ///从模块路径中提取模块名称，如果路径无效则返回 None
@@ -476,7 +496,6 @@ fn utpam_load_module(
                                 newmod.dl_handle = Some(handle);
                             }
                             Err(e) => {
-                                println!("Error loading module: {}", e);
                                 if handler_type != PAM_HT_SILENT_MODULE {
                                     println!("{}", e);
                                 }
@@ -506,24 +525,24 @@ fn utpam_add_handler(
     stack_level: i32,
     module_type: i32,
     actions: &mut [i32],
-    mod_path: Option<String>,
+    mod_path: &Option<String>,
     argc: i32,
-    argv: Option<Vec<String>>,
-    _argvlen: isize,
+    argv: &[String],
 ) -> i32 {
     let mut load_module = None;
 
     let mut mod_type: i32 = PAM_MT_FAULTY_MOD;
+    let unknown_module = UNKNOWN_MODULE.to_string();
 
     //处理模块路径
     let mod_path = match mod_path {
         Some(s) => s,
-        None => UNKNOWN_MODULE.to_string(),
+        None => &unknown_module,
     };
 
     //根据模块路径获取模块类型
     if handler_type == PAM_HT_MODULE || handler_type == PAM_HT_SILENT_MODULE {
-        let new_path = PathBuf::from(DEFAULT_MODULE_PATH).join(&mod_path);
+        let new_path = PathBuf::from(DEFAULT_MODULE_PATH).join(mod_path);
         if mod_path.starts_with('/') {
             load_module = utpam_load_module(
                 &mut utpamh.handlers.module,
@@ -593,7 +612,7 @@ fn utpam_add_handler(
     // 获取函数指针
     match utpam_dlsym(handle, sym.as_bytes()) {
         Ok(func) => {
-            let path = match extract_modulename(&mod_path) {
+            let path = match extract_modulename(mod_path) {
                 Some(mod_name) => mod_name,
                 None => return PAM_ABORT,
             };
@@ -606,7 +625,7 @@ fn utpam_add_handler(
                 cached_retval: _PAM_INVALID_RETVAL,
                 cached_retval_p: None, //待定
                 argc,
-                argv: argv.clone(),
+                argv: argv.to_owned(),
                 next: None,
                 mod_name: path,
                 stack_level,
@@ -622,7 +641,7 @@ fn utpam_add_handler(
     if !sym2.is_empty() {
         match utpam_dlsym(handle, sym2.as_bytes()) {
             Ok(func) => {
-                let path = match extract_modulename(&mod_path) {
+                let path = match extract_modulename(mod_path) {
                     Some(mod_name) => mod_name,
                     None => return PAM_ABORT,
                 };
@@ -633,7 +652,7 @@ fn utpam_add_handler(
                     cached_retval: _PAM_INVALID_RETVAL,
                     cached_retval_p: None, //待定
                     argc,
-                    argv: argv.clone(),
+                    argv: argv.to_owned(),
                     next: None,
                     mod_name: path,
                     stack_level,

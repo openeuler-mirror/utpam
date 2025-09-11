@@ -225,7 +225,7 @@ pub struct Handler {
     pub(super) cached_retval: i32,
     pub(super) cached_retval_p: Option<*mut isize>, //待定
     pub(super) argc: i32,
-    pub(super) argv: Option<Vec<String>>,
+    pub(super) argv: Vec<String>,
     pub(super) next: Option<Box<Handler>>,
     pub(super) mod_name: String,
     pub(super) stack_level: i32,

@@ -42,6 +42,7 @@ pub const UTPAM_CONFIG_DIST_D: &str = "/usr/lib/utpam.d";
 
 pub const UTPAM_DEFAULT_SERVICE: &str = "other";
 
+#[derive(Debug)]
 pub struct UtpamHandle {
     pub(super) authtok: String,
     pub(super) pam_conversation: UtpamConv,
@@ -158,18 +159,17 @@ impl UtpamHandle {
     //     }
 }
 
-//定义一个trait来模拟清理函数的行为
-trait CleanupFn {
-    fn cleanup(&self, utpamh: &mut Option<Box<UtpamHandle>>, data: Vec<String>, error_status: i32);
-}
+type CleanupFn = fn(&mut Option<Box<UtpamHandle>>, Vec<String>, i32);
 
+#[derive(Debug)]
 pub struct UtpamData {
-    name: Option<String>,
-    data: Box<dyn std::any::Any>, // 表示可以存储任何类型的数据。Box<dyn Any> 是一个智能指针，它指向一个实现了 Any trait 的值。
-    cleanup: Option<Box<dyn CleanupFn>>,
-    next: Option<Box<UtpamData>>, //待定，是否考虑使用Option<Rc<RefCell<PamData>>>
+    pub(super) name: Option<String>,
+    pub(super) data: Box<dyn std::any::Any>, // 表示可以存储任何类型的数据。Box<dyn Any> 是一个智能指针，它指向一个实现了 Any trait 的值。
+    pub(super) cleanup: Option<Box<CleanupFn>>,
+    pub(super) next: Option<Box<UtpamData>>, //待定
 }
 
+#[derive(Debug)]
 pub enum UtpamBoolean {
     UtpamFalse,
     UtpamTrue,
@@ -184,6 +184,7 @@ impl UtpamBoolean {
     }
 }
 
+#[derive(Debug)]
 pub struct Service {
     pub(super) module: Vec<LoadedModule>,
     pub(super) modules_allocated: isize,
@@ -193,6 +194,7 @@ pub struct Service {
     pub(super) other: Handlers,
 }
 
+#[derive(Debug)]
 pub struct LoadedModule {
     pub(super) name: String,
     pub(super) moule_type: i32,
@@ -232,18 +234,21 @@ pub struct Handler {
     pub(super) grantor: isize,
 }
 
+#[derive(Debug)]
 struct UtpamSubstackState {
-    impression: isize,
-    status: isize,
+    pub(super) impression: isize,
+    pub(super) status: isize,
 }
+
+#[derive(Debug)]
 pub struct UtpamFormerState {
     pub(super) choice: i32,
-    depth: isize,
-    impression: isize,
-    status: isize,
+    pub(super) depth: isize,
+    pub(super) impression: isize,
+    pub(super) status: isize,
     substates: Vec<UtpamSubstackState>,
-    fail_user: isize,
-    want_user: isize,
-    prompt: Option<String>,
-    update: UtpamBoolean,
+    pub(super) fail_user: isize,
+    pub(super) want_user: isize,
+    pub(super) prompt: Option<String>,
+    pub(super) update: UtpamBoolean,
 }

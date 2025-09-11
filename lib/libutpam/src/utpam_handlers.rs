@@ -33,7 +33,10 @@ const PAM_T_PASS: i32 = 8;
 const UNKNOWN_MODULE: &str = "unknown module";
 const DEFAULT_MODULE_PATH: &str = "/lib64/security";
 
+//初始化UtpamHandle结构体字段
 pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> i32 {
+    let mut retval = 0;
+
     //如果所有内容都已加载，则立即返回
     if utpamh.handlers.handlers_loaded != 0 {
         return PAM_SUCCESS;
@@ -45,27 +48,80 @@ pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> i32 {
     let mut path: Option<PathBuf> = None;
     let mut file: Option<File> = None;
 
+    //检查配置目录是否存在
     if utpamh.confdir.exists()
         || check_directory(UTPAM_CONFIG_D)
         || check_directory(UTPAM_CONFIG_DIST_D)
     {
-        //从配置文件中获取配置目录
-
+        let mut read_something = 0;
+        //打开配置文件并解析
         if utpam_open_config_file(utpamh, utpamh.service_name.clone(), &mut path, &mut file)
             == PAM_SUCCESS
         {
             //解析配置文件
-            utpam_parse_config_file(
+            retval = utpam_parse_config_file(
                 utpamh,
-                file.unwrap(),
+                file.as_mut().unwrap(),
                 Some(utpamh.service_name.clone()),
-                0,
+                PAM_T_ANY,
                 0,
                 0,
                 false,
             );
+
+            if retval != PAM_SUCCESS {
+                println!("pam_init_handlers: error reading: {:?}", path);
+            } else {
+                read_something = 1;
+            }
+        } else {
+            println!(
+                "unable to open configuration for: {:?}",
+                utpamh.service_name
+            );
+            retval = PAM_SUCCESS;
+        }
+
+        if retval == PAM_SUCCESS {
+            if utpam_open_config_file(
+                utpamh,
+                UTPAM_DEFAULT_SERVICE.to_string(),
+                &mut path,
+                &mut file,
+            ) == PAM_SUCCESS
+            {
+                retval = utpam_parse_config_file(
+                    utpamh,
+                    file.as_mut().unwrap(),
+                    Some(UTPAM_DEFAULT_SERVICE.to_string()),
+                    PAM_T_ANY,
+                    0,
+                    0,
+                    false,
+                );
+                if retval != PAM_SUCCESS {
+                    println!("utpam_init_handlers: error reading: {:?}", path);
+                } else {
+                    read_something = 1;
+                }
+            } else {
+                println!(
+                    "unable to open configuration for: {:?}",
+                    UTPAM_DEFAULT_SERVICE
+                );
+            }
+            if read_something == 0 {
+                retval = PAM_ABORT;
+            }
         }
     }
+
+    if retval != PAM_SUCCESS {
+        println!("error reading PAM configuration file");
+        return PAM_ABORT;
+    }
+
+    utpamh.handlers.handlers_loaded = 1;
 
     PAM_SUCCESS
 }
@@ -168,7 +224,7 @@ fn utpam_load_conf_file(
         //解析配置文件
         retval = utpam_parse_config_file(
             utpamh,
-            file.unwrap(),
+            file.as_mut().unwrap(),
             service,
             module_type,
             include_level,
@@ -192,7 +248,7 @@ fn utpam_load_conf_file(
 //解析配置文件
 fn utpam_parse_config_file(
     utpamh: &mut Box<UtpamHandle>,
-    file: File,
+    file: &mut File,
     known_service: Option<String>,
     requested_module_type: i32,
     include_level: i32,

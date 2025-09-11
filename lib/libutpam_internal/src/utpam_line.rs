@@ -26,7 +26,7 @@ impl Default for UtpamLineBuffer {
 
 ///处理配置文件内容
 pub fn utpam_line_assemble(
-    reader: &mut BufReader<File>,
+    reader: &mut BufReader<&mut File>,
     buffer: &mut UtpamLineBuffer,
     repl: String,
 ) -> i32 {

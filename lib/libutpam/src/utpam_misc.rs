@@ -6,7 +6,7 @@
 ///一些辅助函数
 use crate::common::{PAM_RETURN_VALUES, PAM_TOKEN_ACTIONS, PAM_TOKEN_RETURNS};
 use crate::utpam::PAM_ACTION_UNDEF;
-
+use std::mem::size_of;
 //设置control_array数组的值并退出
 macro_rules! set_and_break {
     ($array:expr) => {{
@@ -180,4 +180,35 @@ pub fn utpam_parse_control(control_array: &mut [i32], mut tok: &str) {
             utpam_set_default_control(control_array, act);
         }
     }
+}
+
+// 将输入字符串分割成参数
+pub fn utpam_mkargv(input: &str, argv: &mut Vec<String>, argc: &mut i32) -> usize {
+    let len = input.len();
+    let mut total_size = 0;
+
+    // 检查长度是否有效
+    if len > 0 && len < usize::MAX / (size_of::<char>() + size_of::<String>()) {
+        let mut tmp = None;
+        let mut current = Some(input);
+
+        while let Some(token) = utpam_tokenize(current, &mut tmp) {
+            argv.push(token);
+
+            // 检查 argc 是否溢出
+            if *argc == i32::MAX {
+                return total_size;
+            }
+            *argc += 1;
+
+            current = tmp;
+        }
+
+        // 计算内存大小
+        let total_len = argv.iter().map(|s| s.len()).sum::<usize>();
+        let argv_len = argv.len();
+        total_size = total_len + argv_len * size_of::<String>();
+    }
+
+    total_size
 }

@@ -16,7 +16,10 @@ use std::any::Any;
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-pub type DelayFnPtr = Box<dyn Fn(i32, u32, Option<&dyn Any>) + Send + Sync>; //表示一个可以发送和同步的闭包
+//pub type DelayFnPtr = Box<dyn Fn(i32, u32, Option<&dyn Any>) + Send + Sync>; //表示一个可以发送和同步的闭包
+pub type DelayFnPtr = fn(i32, u32, Option<&dyn Any>) -> u64;
+
+#[derive(Debug)]
 pub struct UtpamFailDelay {
     pub set: UtpamBoolean,
     pub delay: u64,

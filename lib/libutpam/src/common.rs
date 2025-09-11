@@ -95,6 +95,7 @@ pub type MiscConv = fn(
     appdata_ptr: Option<Box<dyn Any>>,
 ) -> isize;
 
+#[derive(Debug)]
 pub struct UtpamConv {
     pub conv: MiscConv,
     pub appdata_ptr: Option<Box<dyn Any>>,
@@ -109,6 +110,7 @@ pub struct UtpamMessage {
     pub msg: Vec<String>,
 }
 
+#[derive(Debug)]
 pub struct UtpamXAuthData {
     pub namelen: usize,
     pub name: Option<String>,

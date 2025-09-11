@@ -5,6 +5,7 @@
  */
 #![allow(dead_code)]
 
+#[derive(Debug)]
 pub struct UtpamEnviron {
     entries: usize,
     requested: usize,

@@ -12,12 +12,20 @@ use crate::utpam_env::UtpamEnviron;
 use libloading::Library;
 use std::path::PathBuf;
 
+pub const PAM_CALLED_FROM_MODULE: i32 = 1;
+pub const PAM_CALLED_FROM_APP: i32 = 2;
+
 pub const PAM_MT_DYNAMIC_MOD: i32 = 0;
 pub const PAM_MT_STATIC_MOD: i32 = 1;
 pub const PAM_MT_FAULTY_MOD: i32 = 2;
 
 pub const PAM_NOT_STACKED: i32 = 0;
 pub const PAM_AUTHENTICATE: i32 = 1;
+pub const PAM_SETCRED: i32 = 2;
+pub const PAM_ACCOUNT: i32 = 3;
+pub const PAM_OPEN_SESSION: i32 = 4;
+pub const PAM_CLOSE_SESSION: i32 = 5;
+pub const PAM_CHAUTHTOK: i32 = 6;
 
 pub const PAM_HT_MODULE: i32 = 0;
 pub const PAM_HT_MUST_FAIL: i32 = 1;
@@ -42,11 +50,55 @@ pub const UTPAM_CONFIG_DIST_D: &str = "/usr/lib/utpam.d";
 
 pub const UTPAM_DEFAULT_SERVICE: &str = "other";
 
+#[macro_export]
+macro_rules! IF_NO_UTPAMH {
+    ($expr:expr, $err:expr) => {{
+        match $expr {
+            Some(ref mut value) => value,
+            None => return $err,
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! UTPAM_FROM_MODULE {
+    ($pamh:expr) => {
+        if $pamh.caller_is == PAM_CALLED_FROM_MODULE {
+            true
+        } else {
+            false
+        }
+    };
+}
+#[macro_export]
+macro_rules! UTPAM_FROM_APP {
+    ($pamh:expr) => {
+        if $pamh.caller_is == PAM_CALLED_FROM_APP {
+            true
+        } else {
+            false
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! UTPAM_TO_MODULE {
+    ($pamh:expr) => {
+        $pamh.caller_is = PAM_CALLED_FROM_MODULE
+    };
+}
+#[macro_export]
+macro_rules! UTPAM_TO_APP {
+    ($pamh:expr) => {
+        $pamh.caller_is = PAM_CALLED_FROM_APP
+    };
+}
+
 #[derive(Debug)]
 pub struct UtpamHandle {
     pub(super) authtok: String,
     pub(super) pam_conversation: UtpamConv,
-    pub caller_is: u32,
+    pub caller_is: i32,
     pub(super) oldauthtok: String,
     pub(super) prompt: String,
     pub service_name: String,
@@ -234,21 +286,21 @@ pub struct Handler {
     pub(super) grantor: isize,
 }
 
-#[derive(Debug)]
-struct UtpamSubstackState {
-    pub(super) impression: isize,
-    pub(super) status: isize,
+#[derive(Debug, Clone, Copy)]
+pub struct UtpamSubstackState {
+    pub(super) impression: i32,
+    pub(super) status: i32,
 }
 
 #[derive(Debug)]
 pub struct UtpamFormerState {
     pub(super) choice: i32,
-    pub(super) depth: isize,
-    pub(super) impression: isize,
-    pub(super) status: isize,
-    substates: Vec<UtpamSubstackState>,
-    pub(super) fail_user: isize,
-    pub(super) want_user: isize,
+    pub(super) depth: i32,
+    pub(super) impression: i32,
+    pub(super) status: i32,
+    pub(super) substates: Vec<UtpamSubstackState>,
+    pub(super) fail_user: i32,
+    pub(super) want_user: i32,
     pub(super) prompt: Option<String>,
     pub(super) update: UtpamBoolean,
 }

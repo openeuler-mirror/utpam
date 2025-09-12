@@ -8,7 +8,8 @@
     dead_code,
     unreachable_code,
     non_snake_case,
-    unreachable_patterns
+    unreachable_patterns,
+    clippy::needless_return
 )]
 
 use crate::utpam::UtpamHandle;

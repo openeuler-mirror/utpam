@@ -117,13 +117,3 @@ pub struct UtpamXAuthData {
     pub datalen: usize,
     pub data: Vec<u8>,
 }
-
-#[macro_export]
-macro_rules! IF_NO_UTPAMH {
-    ($expr:expr, $err:expr) => {{
-        match $expr {
-            Some(ref mut value) => value,
-            None => return $err,
-        }
-    }};
-}

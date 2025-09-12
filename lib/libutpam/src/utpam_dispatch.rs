@@ -8,8 +8,11 @@
 use crate::common::*;
 use crate::utpam::*;
 use crate::utpam_handlers::utpam_init_handlers;
+use crate::utpam_item::utpam_get_item;
 
 use crate::{UTPAM_FROM_MODULE, UTPAM_TO_APP, UTPAM_TO_MODULE};
+
+use std::any::Any;
 
 const PAM_UNDEF: i32 = 0;
 const PAM_POSITIVE: i32 = 1;
@@ -42,7 +45,17 @@ fn utpam_dispatch_aux(
     }];
 
     if h.is_empty() {
-        //pam_get_item(pamh, PAM_SERVICE, &service);待开发
+        let mut service: Box<dyn Any> = Box::new(());
+
+        // 获取服务名
+        utpam_get_item(utpamh, PAM_SERVICE, &mut service);
+
+        // 因为service_name是String, 将 Box<dyn Any> 转换为 String 类型的引用
+        if let Some(name) = service.downcast_ref::<String>() {
+            println!("no modules loaded for '{}' service", name);
+        } else {
+            println!("no modules loaded for <unknown> service");
+        }
         return PAM_MUST_FAIL_CODE;
     }
     println!("resumed: {:?}", resumed);
@@ -56,7 +69,7 @@ fn utpam_dispatch_aux(
         utpamh.former.impression = PAM_UNDEF;
         utpamh.former.status = PAM_MUST_FAIL_CODE;
         utpamh.former.depth = 0;
-        //utpamh.former.substates = vec![];
+        utpamh.former.substates = vec![];
     };
 
     prev_level = 0;
@@ -69,6 +82,7 @@ fn utpam_dispatch_aux(
 
     status
 }
+
 /// 重置所有模块的grantor标记，确保模块堆栈的每一次执行都是干净的
 fn utpam_clear_grantors(handler: &mut [Handler]) {
     for handler in handler.iter_mut() {

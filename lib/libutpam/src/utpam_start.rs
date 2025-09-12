@@ -13,6 +13,7 @@ use crate::utpam::UtpamHandle;
 use crate::utpam_handlers::*;
 use crate::utpam_syslog::*;
 use std::path::PathBuf;
+use std::rc::Rc;
 use tklog::{debug, error, fatal, info, warn};
 
 pub fn utpam_start(
@@ -57,6 +58,7 @@ fn utpam_start_internal(
         Some(path) => path,
         None => PathBuf::default(),
     };
+    let utpam_conversation = Rc::new(utpam_conversation);
     let mut pamh = Box::new(UtpamHandle::new(
         service_name,
         utpam_conversation,

@@ -11,6 +11,7 @@ use crate::utpam_env::UtpamEnviron;
 
 use libloading::Library;
 use std::path::PathBuf;
+use std::rc::Rc;
 
 pub const PAM_CALLED_FROM_MODULE: i32 = 1;
 pub const PAM_CALLED_FROM_APP: i32 = 2;
@@ -97,12 +98,12 @@ macro_rules! UTPAM_TO_APP {
 #[derive(Debug)]
 pub struct UtpamHandle {
     pub(super) authtok: String,
-    pub(super) pam_conversation: UtpamConv,
+    pub(super) pam_conversation: Rc<UtpamConv>,
     pub caller_is: i32,
     pub(super) oldauthtok: String,
     pub(super) prompt: String,
     pub service_name: String,
-    pub(super) user: String, //可以为空，修改：String -> Option<String>
+    pub(super) user: String,
     pub(super) rhost: String,
     pub(super) ruser: String,
     pub(super) tty: String,
@@ -126,7 +127,7 @@ pub struct UtpamHandle {
 impl UtpamHandle {
     pub fn new(
         service_name: String,
-        pam_conversation: UtpamConv,
+        pam_conversation: Rc<UtpamConv>,
         confdir: PathBuf,
         user: Option<String>,
     ) -> Self {
@@ -221,7 +222,7 @@ pub struct UtpamData {
     pub(super) next: Option<Box<UtpamData>>, //待定
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum UtpamBoolean {
     UtpamFalse,
     UtpamTrue,

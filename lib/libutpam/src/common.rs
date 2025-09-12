@@ -41,6 +41,15 @@ pub const PAM_CONV_AGAIN: i32 = 30;
 pub const PAM_INCOMPLETE: i32 = 31;
 pub const PAM_RETURN_VALUES: usize = 32;
 
+pub const LOG_EMERG: i8 = 0;
+pub const LOG_ALERT: i8 = 1;
+pub const LOG_CRIT: i8 = 2;
+pub const LOG_ERR: i8 = 3;
+pub const LOG_WARNING: i8 = 4;
+pub const LOG_NOTICE: i8 = 5;
+pub const LOG_INFO: i8 = 6;
+pub const LOG_DEBUG: i8 = 7;
+
 pub const PAM_ESTABLISH_CRED: u32 = 0x0002;
 
 pub const PAM_TOKEN_RETURNS: [&str; 33] = [

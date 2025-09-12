@@ -50,6 +50,20 @@ pub const LOG_NOTICE: i8 = 5;
 pub const LOG_INFO: i8 = 6;
 pub const LOG_DEBUG: i8 = 7;
 
+pub const PAM_SERVICE: i32 = 1;
+pub const PAM_USER: i32 = 2;
+pub const PAM_TTY: i32 = 3;
+pub const PAM_RHOST: i32 = 4;
+pub const PAM_CONV: i32 = 5;
+pub const PAM_AUTHTOK: i32 = 6;
+pub const PAM_OLDAUTHTOK: i32 = 7;
+pub const PAM_RUSER: i32 = 8;
+pub const PAM_USER_PROMPT: i32 = 9;
+pub const PAM_FAIL_DELAY: i32 = 10;
+pub const PAM_XDISPLAY: i32 = 11;
+pub const PAM_XAUTHDATA: i32 = 12;
+pub const PAM_AUTHTOK_TYPE: i32 = 13;
+
 pub const PAM_ESTABLISH_CRED: u32 = 0x0002;
 
 pub const PAM_TOKEN_RETURNS: [&str; 33] = [
@@ -97,6 +111,16 @@ pub const PAM_TOKEN_ACTIONS: [&str; 6] = [
     "reset",  /* -5 */
 ];
 
+/// 安全地覆盖字符串或字节数组
+#[macro_export]
+macro_rules! utpam_overwrite_string {
+    ($x:expr) => {
+        if !$x.is_empty() {
+            $x.zeroize();
+        }
+    };
+}
+
 pub type MiscConv = fn(
     num_msg: isize,
     msg: &[UtpamMessage],
@@ -119,10 +143,20 @@ pub struct UtpamMessage {
     pub msg: Vec<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct UtpamXAuthData {
-    pub namelen: usize,
+    pub namelen: i32,
     pub name: Option<String>,
-    pub datalen: usize,
-    pub data: Vec<u8>,
+    pub datalen: i32,
+    pub data: Vec<String>,
+}
+
+impl UtpamXAuthData {
+    /// 清空 UtpamXAuthData 结构体的所有字段
+    pub fn clear(&mut self) {
+        self.namelen = 0;
+        self.name = None;
+        self.datalen = 0;
+        self.data.clear();
+    }
 }

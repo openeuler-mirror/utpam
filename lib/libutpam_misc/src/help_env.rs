@@ -3,7 +3,14 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
-#![allow(dead_code, unused_mut, unused_variables, unused_imports)]
+#![allow(
+    dead_code,
+    unused_mut,
+    unused_variables,
+    unused_imports,
+    clippy::len_zero,
+    clippy::unnecessary_cast
+)]
 
 use std::ffi::CString;
 use utpam::common::PAM_BUF_ERR;

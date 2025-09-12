@@ -3,6 +3,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
+#![allow(clippy::needless_borrow)]
+
 ///一些辅助函数
 use crate::common::{PAM_RETURN_VALUES, PAM_TOKEN_ACTIONS, PAM_TOKEN_RETURNS};
 use crate::utpam::PAM_ACTION_UNDEF;

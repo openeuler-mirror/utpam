@@ -18,3 +18,4 @@ pub mod utpam_item;
 pub mod utpam_misc;
 pub mod utpam_start;
 pub mod utpam_strerror;
+pub mod utpam_syslog;

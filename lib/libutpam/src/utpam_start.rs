@@ -5,12 +5,15 @@
  */
 #![allow(dead_code, unused_mut)]
 #![allow(unused_variables)]
+
 use crate::common::*;
+use crate::pam_syslog;
 use crate::parse::*;
 use crate::utpam::UtpamHandle;
 use crate::utpam_handlers::*;
-
+use crate::utpam_syslog::*;
 use std::path::PathBuf;
+use tklog::{debug, error, fatal, info, warn};
 
 pub fn utpam_start(
     service_name: String,
@@ -44,6 +47,8 @@ fn utpam_start_internal(
     confdir: Option<PathBuf>,
     mut utpamh: &mut Option<Box<UtpamHandle>>,
 ) -> i32 {
+    //初始化日志
+    log_init();
     //处理服务名称
     let service_name = parse_str(service_name);
 
@@ -61,7 +66,13 @@ fn utpam_start_internal(
 
     //实例化UtpamHandle
     if utpam_init_handlers(&mut pamh) != PAM_SUCCESS {
-        //日志处理（待补充）
+        //报错信息，输出到日志
+        pam_syslog!(
+            &pamh,
+            LOG_ERR,
+            "pam_start: failed to initialize handlers",
+            ""
+        );
         return PAM_ABORT;
     }
 

@@ -48,7 +48,8 @@ fn _pam_choice2str(choice: i8) -> &'static str {
 
 #[macro_export]
 macro_rules! pam_syslog {
-    ($utpamh:expr, $priority:expr, $fmt:expr, $($args:expr)*) => {{
+    ($utpamh:expr, $priority:expr, $fmt:expr, $($args:tt),*) => {{
+
         let mut msgbuf2:String = String::new();
         msgbuf2.push_str($fmt);
         $(msgbuf2.push_str($args);)*

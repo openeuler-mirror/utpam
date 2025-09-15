@@ -16,6 +16,7 @@ pub mod utpam_env;
 pub mod utpam_handlers;
 pub mod utpam_item;
 pub mod utpam_misc;
+pub mod utpam_modutil_ioloop;
 pub mod utpam_password;
 pub mod utpam_session;
 pub mod utpam_start;

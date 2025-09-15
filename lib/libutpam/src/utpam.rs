@@ -53,6 +53,17 @@ pub const UTPAM_CONFIG_DIST_D: &str = "/usr/lib/utpam.d";
 pub const UTPAM_DEFAULT_SERVICE: &str = "other";
 
 #[macro_export]
+macro_rules! PAM_ACTION_IS_JUMP {
+    ($x:expr) => {{
+        if $x > 0 {
+            true
+        } else {
+            false
+        }
+    }};
+}
+
+#[macro_export]
 macro_rules! IF_NO_UTPAMH {
     ($expr:expr, $err:expr) => {{
         match $expr {
@@ -117,7 +128,7 @@ pub struct UtpamHandle {
     pub(super) handlers: Service,
     pub(super) former: UtpamFormerState,
     pub(super) mod_name: String,
-    pub(super) mod_argc: isize,
+    pub(super) mod_argc: i32,
     pub(super) mod_argv: Vec<String>,
     pub(super) choice: isize,
     pub(super) audit_state: isize,
@@ -304,7 +315,7 @@ pub struct UtpamSubstackState {
     pub(super) status: i32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct UtpamFormerState {
     pub(super) choice: i32,
     pub(super) depth: i32,

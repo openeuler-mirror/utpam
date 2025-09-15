@@ -3,19 +3,14 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
-#![allow(
-    unused_variables,
-    dead_code,
-    unused_assignments,
-    clippy::collapsible_if
-)]
+#![allow(clippy::collapsible_if)]
 ///模块调度
 use crate::common::*;
 use crate::utpam::*;
 use crate::utpam_handlers::utpam_init_handlers;
 use crate::utpam_item::utpam_get_item;
 
-use crate::{UTPAM_FROM_MODULE, UTPAM_TO_APP, UTPAM_TO_MODULE};
+use crate::{PAM_ACTION_IS_JUMP, UTPAM_FROM_MODULE, UTPAM_TO_APP, UTPAM_TO_MODULE};
 
 use std::any::Any;
 
@@ -25,7 +20,6 @@ const PAM_NEGATIVE: i32 = -1;
 
 const PAM_PLEASE_FREEZE: i32 = 0;
 const PAM_MAY_BE_FROZEN: i32 = 1;
-const PAM_MUST_BE_FROZEN: i32 = 2;
 
 const PAM_MUST_FAIL_CODE: i32 = PAM_PERM_DENIED;
 
@@ -37,12 +31,11 @@ fn utpam_dispatch_aux(
     resumed: UtpamBoolean,
     use_cached_chain: i32,
 ) -> i32 {
-    let depth = 0;
+    let mut depth = 0;
     let mut impression = PAM_UNDEF;
     let mut status = PAM_MUST_FAIL_CODE;
     let mut skip_depth = 0;
     let mut prev_level = 0;
-    let stack_level = 0;
 
     let mut substates = vec![UtpamSubstackState {
         impression: PAM_UNDEF,
@@ -63,7 +56,7 @@ fn utpam_dispatch_aux(
         }
         return PAM_MUST_FAIL_CODE;
     }
-    println!("resumed: {:?}", resumed);
+
     if resumed.to_bool() {
         skip_depth = utpamh.former.depth;
         status = utpamh.former.status;
@@ -77,9 +70,155 @@ fn utpam_dispatch_aux(
         utpamh.former.substates = vec![];
     };
 
-    prev_level = 0;
+    while let Some(ref mut h) = handlers {
+        let mut retval;
+        let stack_level = h.stack_level;
 
-    //待开发
+        // 如果深度小于1则跳过它们
+        if depth < skip_depth {
+            depth += 1;
+            *handlers = h.next.take();
+            continue;
+        }
+
+        if prev_level < stack_level {
+            substates[stack_level as usize].impression = impression;
+            substates[stack_level as usize].status = status;
+        }
+
+        // 处理模块
+        if h.handler_type == PAM_HT_MUST_FAIL {
+            println!("module poorly listed in PAM config; forcing failure");
+            retval = PAM_MUST_FAIL_CODE; //强制失败
+        } else if h.handler_type == PAM_HT_SUBSTACK {
+            println!("skipping substack handler");
+            //depth += 1;  ////跳过子堆栈
+            *handlers = h.next.take();
+            continue;
+        } else if h.func.is_none() {
+            println!("module function is not defined, indicating failure");
+            retval = PAM_MODULE_UNKNOWN; //模块函数未定义，失败
+        } else {
+            println!("passing control to module...");
+            utpamh.mod_name = h.mod_name.clone();
+            utpamh.mod_argc = h.argc;
+            utpamh.mod_argv = h.argv.clone();
+
+            let func = h.func.unwrap();
+            retval = func(utpamh, flags, Some(h.argc), Some(h.argv.clone()));
+            utpamh.mod_name = String::default();
+            utpamh.mod_argc = 0;
+            utpamh.mod_argv = vec![];
+        }
+
+        if retval == PAM_INCOMPLETE {
+            utpamh.former.impression = impression;
+            utpamh.former.status = status;
+            utpamh.former.depth = depth;
+            utpamh.former.substates = substates.clone();
+
+            return retval;
+        }
+        let mut cached_retval;
+        let action;
+        if use_cached_chain != PAM_PLEASE_FREEZE {
+            //获取缓存的值
+            cached_retval = h.get_cached_retval();
+
+            if cached_retval == _PAM_INVALID_RETVAL {
+                println!(
+                    "use_cached_chain is set to {}, but cached_retval == _PAM_INVALID_RETVAL",
+                    use_cached_chain
+                );
+
+                if use_cached_chain == PAM_MAY_BE_FROZEN {
+                    //h.set_cached_retval(retval);
+                    cached_retval = retval;
+                } else {
+                    println!("BUG in libpam - chain is required to be frozen but isn't");
+                }
+            }
+        } else {
+            h.set_cached_retval(retval);
+            cached_retval = retval;
+        }
+
+        if cached_retval < PAM_SUCCESS || cached_retval >= PAM_RETURN_VALUES as i32 {
+            retval = PAM_MUST_FAIL_CODE;
+            action = PAM_ACTION_BAD;
+        } else {
+            action = h.actions[cached_retval as usize];
+        }
+        println!(
+            "use_cached_chain={} action={} cached_retval={} retval={}",
+            use_cached_chain, action, cached_retval, retval
+        );
+
+        match action {
+            PAM_ACTION_RESET => {
+                impression = substates[stack_level as usize].impression;
+                status = substates[stack_level as usize].status;
+            }
+            PAM_ACTION_OK | PAM_ACTION_DONE => {
+                if impression == PAM_UNDEF || (impression == PAM_POSITIVE && status == PAM_SUCCESS)
+                {
+                    if retval != PAM_IGNORE || cached_retval == retval {
+                        impression = PAM_POSITIVE;
+                        status = retval;
+                    }
+                }
+                if impression == PAM_POSITIVE {
+                    if retval == PAM_SUCCESS {
+                        h.grantor = 1;
+                    }
+                    if action == PAM_ACTION_DONE {
+                        break;
+                    }
+                }
+            }
+            PAM_ACTION_BAD | PAM_ACTION_DIE => {
+                if impression != PAM_NEGATIVE {
+                    impression = PAM_NEGATIVE;
+                    if retval == PAM_IGNORE {
+                        status = PAM_MUST_FAIL_CODE;
+                    } else {
+                        status = retval;
+                    }
+                }
+                if action == PAM_ACTION_DIE {
+                    break;
+                }
+            }
+            PAM_ACTION_IGNORE => {}
+            _ => {
+                if PAM_ACTION_IS_JUMP!(action) {
+                    if use_cached_chain == 1 {
+                        if impression == PAM_UNDEF
+                            || (impression == PAM_POSITIVE && status == PAM_SUCCESS)
+                        {
+                            if retval != PAM_IGNORE || cached_retval == retval {
+                                if impression == PAM_UNDEF && retval == PAM_SUCCESS {
+                                    h.grantor = 1;
+                                }
+                                impression = PAM_POSITIVE;
+                                status = retval;
+                            }
+                        }
+                    }
+                }
+
+                if action == 1 {
+                    println!("bad jump in stack");
+                    impression = PAM_NEGATIVE;
+                    status = PAM_MUST_FAIL_CODE;
+                }
+            }
+        }
+
+        depth += 1;
+        prev_level = stack_level;
+        *handlers = h.next.take();
+    }
 
     if status == PAM_SUCCESS && impression != PAM_POSITIVE {
         status = PAM_MUST_FAIL_CODE;

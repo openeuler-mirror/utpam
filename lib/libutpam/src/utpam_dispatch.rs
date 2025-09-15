@@ -3,7 +3,12 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
-#![allow(dead_code, unused_variables, unused_assignments)]
+#![allow(
+    unused_variables,
+    dead_code,
+    unused_assignments,
+    clippy::collapsible_if
+)]
 ///模块调度
 use crate::common::*;
 use crate::utpam::*;
@@ -28,7 +33,7 @@ const PAM_MUST_FAIL_CODE: i32 = PAM_PERM_DENIED;
 fn utpam_dispatch_aux(
     utpamh: &mut Box<UtpamHandle>,
     flags: u32,
-    h: &mut [Handler],
+    handlers: &mut Option<Box<Handler>>,
     resumed: UtpamBoolean,
     use_cached_chain: i32,
 ) -> i32 {
@@ -39,12 +44,12 @@ fn utpam_dispatch_aux(
     let mut prev_level = 0;
     let stack_level = 0;
 
-    let mut substates = &vec![UtpamSubstackState {
+    let mut substates = vec![UtpamSubstackState {
         impression: PAM_UNDEF,
         status: PAM_MUST_FAIL_CODE,
     }];
 
-    if h.is_empty() {
+    if handlers.is_none() {
         let mut service: Box<dyn Any> = Box::new(());
 
         // 获取服务名
@@ -63,7 +68,7 @@ fn utpam_dispatch_aux(
         skip_depth = utpamh.former.depth;
         status = utpamh.former.status;
         impression = utpamh.former.impression;
-        substates = &utpamh.former.substates;
+        substates = utpamh.former.substates.clone();
 
         //清空 pamh->former 中的状态，为下次可能的恢复调用做准备
         utpamh.former.impression = PAM_UNDEF;
@@ -84,7 +89,7 @@ fn utpam_dispatch_aux(
 }
 
 /// 重置所有模块的grantor标记，确保模块堆栈的每一次执行都是干净的
-fn utpam_clear_grantors(handler: &mut [Handler]) {
+fn utpam_clear_grantors(handler: &mut Option<Box<Handler>>) {
     for handler in handler.iter_mut() {
         handler.grantor = 0;
     }
@@ -93,9 +98,9 @@ fn utpam_clear_grantors(handler: &mut [Handler]) {
 /// 将模块调度请求转换为指向将实际运行的模块堆栈的指针
 pub fn utpam_dispatch(utpamh: &mut Box<UtpamHandle>, flags: u32, choice: i32) -> i32 {
     let mut retval = PAM_SYSTEM_ERR;
-    let mut use_cached_chain = 0;
+    let mut use_cached_chain;
     let mut h;
-    let mut resumed = UtpamBoolean::UtpamFalse;
+    let resumed;
 
     if UTPAM_FROM_MODULE!(utpamh) {
         return retval;
@@ -138,7 +143,7 @@ pub fn utpam_dispatch(utpamh: &mut Box<UtpamHandle>, flags: u32, choice: i32) ->
     };
 
     // 如果conf中没有找到对应的处理器，则使用other中的默认处理器
-    if h.is_empty() {
+    if h.is_none() {
         match choice {
             PAM_AUTHENTICATE => {
                 h = &mut utpamh.handlers.other.authenticate;

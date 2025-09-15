@@ -10,6 +10,7 @@ use crate::utpam_delay::UtpamFailDelay;
 use crate::utpam_env::UtpamEnviron;
 
 use libloading::Library;
+use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -164,20 +165,20 @@ impl UtpamHandle {
                 modules_used: 0,
                 handlers_loaded: 0,
                 conf: Handlers {
-                    authenticate: vec![],
-                    setcred: vec![],
-                    acct_mgmt: vec![],
-                    open_session: vec![],
-                    close_session: vec![],
-                    chauthtok: vec![],
+                    authenticate: None,
+                    setcred: None,
+                    acct_mgmt: None,
+                    open_session: None,
+                    close_session: None,
+                    chauthtok: None,
                 },
                 other: Handlers {
-                    authenticate: vec![],
-                    setcred: vec![],
-                    acct_mgmt: vec![],
-                    open_session: vec![],
-                    close_session: vec![],
-                    chauthtok: vec![],
+                    authenticate: None,
+                    setcred: None,
+                    acct_mgmt: None,
+                    open_session: None,
+                    close_session: None,
+                    chauthtok: None,
                 },
             },
             former: UtpamFormerState {
@@ -256,18 +257,18 @@ pub struct LoadedModule {
 
 #[derive(Debug, Clone)]
 pub struct Handlers {
-    pub(super) authenticate: Vec<Handler>,
-    pub(super) setcred: Vec<Handler>,
-    pub(super) acct_mgmt: Vec<Handler>,
-    pub(super) open_session: Vec<Handler>,
-    pub(super) close_session: Vec<Handler>,
-    pub(super) chauthtok: Vec<Handler>,
+    pub(super) authenticate: Option<Box<Handler>>,
+    pub(super) setcred: Option<Box<Handler>>,
+    pub(super) acct_mgmt: Option<Box<Handler>>,
+    pub(super) open_session: Option<Box<Handler>>,
+    pub(super) close_session: Option<Box<Handler>>,
+    pub(super) chauthtok: Option<Box<Handler>>,
 }
 
 //定义类型别名CallSpi
 pub type CallSpi = fn(
-    utpamh: &mut Option<Box<UtpamHandle>>,
-    flags: i32,
+    utpamh: &mut Box<UtpamHandle>,
+    flags: u32,
     argc: Option<i32>,
     argv: Option<Vec<String>>,
 ) -> i32;
@@ -275,16 +276,26 @@ pub type CallSpi = fn(
 #[derive(Debug, Clone)]
 pub struct Handler {
     pub(super) handler_type: i32,
-    pub(super) cleanup: Option<CallSpi>,
+    pub(super) func: Option<CallSpi>,
     pub(super) actions: Vec<i32>,
-    pub(super) cached_retval: i32,
-    pub(super) cached_retval_p: Option<*mut isize>, //待定
+    pub(super) cached_retval: Rc<RefCell<i32>>, //用于实现内部可变性和共享所有权
     pub(super) argc: i32,
     pub(super) argv: Vec<String>,
     pub(super) next: Option<Box<Handler>>,
     pub(super) mod_name: String,
     pub(super) stack_level: i32,
     pub(super) grantor: isize,
+}
+
+impl Handler {
+    //设置cached_retval 字段的值
+    pub fn set_cached_retval(&self, value: i32) {
+        *self.cached_retval.borrow_mut() = value;
+    }
+    //获取cached_retval 字段的值
+    pub fn get_cached_retval(&self) -> i32 {
+        *self.cached_retval.borrow()
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

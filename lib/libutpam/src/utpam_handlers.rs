@@ -3,12 +3,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
-#![allow(
-    unused_variables,
-    unused_assignments,
-    dead_code,
-    clippy::too_many_arguments
-)]
+#![allow(clippy::too_many_arguments)]
 
 use crate::common::{PAM_ABORT, PAM_IGNORE, PAM_NEW_AUTHTOK_REQD, PAM_RETURN_VALUES, PAM_SUCCESS};
 use crate::utpam::*;
@@ -20,9 +15,11 @@ use crate::utpam_misc::{
 use std::env::consts::ARCH;
 use utpam_internal::utpam_line::{utpam_line_assemble, UtpamLineBuffer};
 
+use std::cell::RefCell;
 use std::fs::{metadata, File, OpenOptions};
 use std::io::BufReader;
 use std::path::PathBuf;
+use std::rc::Rc;
 
 const PAM_T_ANY: i32 = 0;
 const PAM_T_AUTH: i32 = 1;
@@ -258,7 +255,7 @@ fn utpam_parse_config_file(
     let mut f = BufReader::new(file);
     let mut buffer = UtpamLineBuffer::default();
     let repl = String::from(" ");
-    let mut tok = String::from("");
+    let mut tok;
     let mut handler_type = PAM_HT_MODULE;
     let mut module_type;
     let mut actions: Vec<i32> = vec![0; PAM_RETURN_VALUES];
@@ -266,10 +263,10 @@ fn utpam_parse_config_file(
     //逐行处理配置文件内容
     let mut x = utpam_line_assemble(&mut f, &mut buffer, repl.clone());
     while x > 0 {
-        let mut mod_path: Option<String> = None;
-        let mut nexttok: Option<String> = None;
+        let mut mod_path;
+        //let mut nexttok: Option<String> = None;
         let mut buf = Some(buffer.assembled.as_str());
-        let mut res = 0;
+        let mut res;
         let mut argc = 0;
         let mut argv: Vec<String> = vec![];
 
@@ -434,7 +431,7 @@ fn utpam_parse_config_file(
                         utpam_set_default_control(&mut actions, PAM_ACTION_BAD);
                         mod_path = None;
                         handler_type = PAM_HT_MUST_FAIL;
-                        nexttok = None;
+                        //nexttok = None;
                     } else {
                         mod_path = Some(tok);
                     }
@@ -537,7 +534,7 @@ fn utpam_load_module(
 
                     //处理带有占位符的路径字符串，并根据具体的架构替换占位符以加载正确的动态库
                     let isa_pos = mod_path.find("$ISA");
-                    if let Some(isa_index) = isa_pos {
+                    if isa_pos.is_some() {
                         let target_arch = match ARCH {
                             "x86_64" => "x86_64",
                             "aarch64" => "aarch64",
@@ -587,7 +584,8 @@ fn utpam_add_handler(
 ) -> i32 {
     let mut load_module = None;
 
-    let mut mod_type: i32 = PAM_MT_FAULTY_MOD;
+    //let mut mod_type: i32 = PAM_MT_FAULTY_MOD;
+    let mod_type;
     let unknown_module = UNKNOWN_MODULE.to_string();
 
     //处理模块路径
@@ -672,21 +670,20 @@ fn utpam_add_handler(
                 Some(mod_name) => mod_name,
                 None => return PAM_ABORT,
             };
-
-            // 创建并添加Handler
-            handler_p.push(Handler {
+            let handler = Handler {
                 handler_type,
-                cleanup: Some(*func),
+                func: Some(*func),
                 actions: actions.to_owned(),
-                cached_retval: _PAM_INVALID_RETVAL,
-                cached_retval_p: None, //待定
+                cached_retval: Rc::new(RefCell::new(_PAM_INVALID_RETVAL)),
                 argc,
                 argv: argv.to_owned(),
                 next: None,
                 mod_name: path,
                 stack_level,
                 grantor: 0,
-            });
+            };
+            // 将新 Handler 插入链表末尾
+            append_handler(handler_p, handler);
         }
         Err(e) => {
             println!("{}", e);
@@ -697,23 +694,27 @@ fn utpam_add_handler(
     if !sym2.is_empty() {
         match utpam_dlsym(handle, sym2.as_bytes()) {
             Ok(func) => {
-                let path = match extract_modulename(mod_path) {
-                    Some(mod_name) => mod_name,
-                    None => return PAM_ABORT,
-                };
-                handler_p2.unwrap().push(Handler {
-                    handler_type,
-                    cleanup: Some(*func),
-                    actions: actions.to_owned(),
-                    cached_retval: _PAM_INVALID_RETVAL,
-                    cached_retval_p: None, //待定
-                    argc,
-                    argv: argv.to_owned(),
-                    next: None,
-                    mod_name: path,
-                    stack_level,
-                    grantor: 0,
-                });
+                // 如果存在第二个函数指针，则将其插入链表末尾
+                if let Some(handler_p2) = handler_p2 {
+                    let path = match extract_modulename(mod_path) {
+                        Some(mod_name) => mod_name,
+                        None => return PAM_ABORT,
+                    };
+
+                    let handler = Handler {
+                        handler_type,
+                        func: Some(*func),
+                        actions: actions.to_owned(),
+                        cached_retval: Rc::new(RefCell::new(_PAM_INVALID_RETVAL)),
+                        argc,
+                        argv: argv.to_owned(),
+                        next: None,
+                        mod_name: path,
+                        stack_level,
+                        grantor: 0,
+                    };
+                    append_handler(handler_p2, handler);
+                }
             }
             Err(e) => {
                 println!("{}", e);
@@ -723,4 +724,23 @@ fn utpam_add_handler(
     }
 
     PAM_SUCCESS
+}
+
+//在链表的末尾插入一个新的 Handler 节点
+fn append_handler(handlers: &mut Option<Box<Handler>>, new_handler: Handler) {
+    let mut current = handlers;
+
+    //循环遍历链表，直到找到最后一个节点。如果当前节点的 next 是 None，则插入新的 Handler
+    while let Some(ref mut node) = current {
+        if node.next.is_none() {
+            node.next = Some(Box::new(new_handler));
+            return;
+        }
+        current = &mut node.next;
+    }
+
+    // 如果链表为空，直接插入新的 Handler
+    if current.is_none() {
+        *current = Some(Box::new(new_handler));
+    }
 }

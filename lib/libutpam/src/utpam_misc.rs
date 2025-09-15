@@ -3,11 +3,13 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
-#![allow(clippy::needless_borrow)]
-
 ///一些辅助函数
-use crate::common::{PAM_RETURN_VALUES, PAM_TOKEN_ACTIONS, PAM_TOKEN_RETURNS};
-use crate::utpam::PAM_ACTION_UNDEF;
+use crate::common::{
+    PAM_AUTHTOK, PAM_OLDAUTHTOK, PAM_RETURN_VALUES, PAM_TOKEN_ACTIONS, PAM_TOKEN_RETURNS,
+};
+use crate::utpam::{UtpamHandle, PAM_ACTION_UNDEF, PAM_CALLED_FROM_MODULE};
+use crate::utpam_item::utpam_set_item;
+use crate::UTPAM_TO_MODULE;
 use std::mem::size_of;
 //设置control_array数组的值并退出
 macro_rules! set_and_break {
@@ -213,4 +215,13 @@ pub fn utpam_mkargv(input: &str, argv: &mut Vec<String>, argc: &mut i32) -> usiz
     }
 
     total_size
+}
+
+//重置认证相关的状态
+pub fn utpam_sanitize(utpamh: &mut Box<UtpamHandle>) {
+    let old_caller_is = utpamh.caller_is;
+    UTPAM_TO_MODULE!(utpamh);
+    utpam_set_item(utpamh, PAM_AUTHTOK, None);
+    utpam_set_item(utpamh, PAM_OLDAUTHTOK, None);
+    utpamh.caller_is = old_caller_is;
 }

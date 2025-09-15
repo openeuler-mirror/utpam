@@ -16,18 +16,25 @@ use zeroize::Zeroize;
 /// 更新UtpamHandle结构体字段
 macro_rules! TRY_SET {
     ($old:expr, $item:expr, $field:ty) => {
-        if let Ok(data) = $item.downcast::<$field>() {
-            if *data != $old {
-                $old = *data;
+        match $item {
+            Some(item) => {
+                if let Ok(data) = item.downcast::<$field>() {
+                    if *data != $old {
+                        $old = *data;
+                    }
+                } else {
+                    return PAM_BAD_ITEM;
+                }
+            },
+            None => {
+                $old = <$field>::default(); // 将字段设置为默认值（对于字符串来说就是空字符串）
             }
-        } else {
-            return PAM_BAD_ITEM;
         }
     };
 }
 
 // 设置UtpamHandle结构体中的特定项:
-pub fn utpam_set_item(utpamh: &mut UtpamHandle, item_type: i32, item: Box<dyn Any>) -> i32 {
+pub fn utpam_set_item(utpamh: &mut UtpamHandle, item_type: i32, item: Option<Box<dyn Any>>) -> i32 {
     let mut retval = PAM_SUCCESS;
 
     match item_type {
@@ -54,10 +61,17 @@ pub fn utpam_set_item(utpamh: &mut UtpamHandle, item_type: i32, item: Box<dyn An
         }
         PAM_AUTHTOK => {
             if UTPAM_FROM_MODULE!(utpamh) {
-                if let Ok(s) = item.downcast::<String>() {
-                    if utpamh.authtok != *s {
-                        utpam_overwrite_string!(utpamh.authtok);
-                        utpamh.authtok = *s
+                match item {
+                    Some(item) => {
+                        if let Ok(s) = item.downcast::<String>() {
+                            if utpamh.authtok != *s {
+                                utpam_overwrite_string!(utpamh.authtok);
+                                utpamh.authtok = *s
+                            }
+                        }
+                    }
+                    None => {
+                        utpamh.authtok = String::default();
                     }
                 }
             } else {
@@ -66,24 +80,35 @@ pub fn utpam_set_item(utpamh: &mut UtpamHandle, item_type: i32, item: Box<dyn An
         }
         PAM_OLDAUTHTOK => {
             if UTPAM_FROM_MODULE!(utpamh) {
-                if let Ok(s) = item.downcast::<String>() {
-                    if utpamh.oldauthtok != *s {
-                        utpam_overwrite_string!(utpamh.authtok);
-                        utpamh.oldauthtok = *s
+                match item {
+                    Some(item) => {
+                        if let Ok(s) = item.downcast::<String>() {
+                            if utpamh.oldauthtok != *s {
+                                utpam_overwrite_string!(utpamh.authtok);
+                                utpamh.oldauthtok = *s
+                            }
+                        }
+                    }
+                    None => {
+                        utpamh.oldauthtok = String::default();
                     }
                 }
             } else {
                 retval = PAM_BAD_ITEM;
             }
         }
-        PAM_CONV => {
-            if let Ok(s) = item.downcast::<Rc<UtpamConv>>() {
-                utpamh.pam_conversation = Rc::clone(&s);
-                utpamh.former.fail_user = PAM_SUCCESS;
-            } else {
-                retval = -1;
+        PAM_CONV => match item {
+            Some(item) => {
+                if let Ok(s) = item.downcast::<Rc<UtpamConv>>() {
+                    utpamh.pam_conversation = Rc::clone(&s);
+                    utpamh.former.fail_user = PAM_SUCCESS;
+                }
             }
-        }
+            None => {
+                println!("pam_set_item: attempt to set conv() to NULL");
+                retval = PAM_PERM_DENIED;
+            }
+        },
         PAM_FAIL_DELAY => {
             TRY_SET!(utpamh.fail_delay.delay_fn_ptr, item, Option<DelayFnPtr>);
         }
@@ -91,10 +116,17 @@ pub fn utpam_set_item(utpamh: &mut UtpamHandle, item_type: i32, item: Box<dyn An
             TRY_SET!(utpamh.xdisplay, item, String);
         }
         PAM_XAUTHDATA => {
-            if let Ok(s) = item.downcast::<UtpamXAuthData>() {
-                if utpamh.xauth != *s {
-                    utpamh.xauth.clear(); // 清空xauth的旧数据
-                    utpamh.xauth = *s
+            match item {
+                Some(item) => {
+                    if let Ok(s) = item.downcast::<UtpamXAuthData>() {
+                        if utpamh.xauth != *s {
+                            utpamh.xauth.clear(); // 清空xauth的旧数据
+                            utpamh.xauth = *s
+                        }
+                    }
+                }
+                None => {
+                    utpamh.xauth.clear();
                 }
             }
         }

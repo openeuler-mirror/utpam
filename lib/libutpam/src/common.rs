@@ -66,6 +66,9 @@ pub const PAM_AUTHTOK_TYPE: i32 = 13;
 
 pub const PAM_ESTABLISH_CRED: u32 = 0x0002;
 
+pub const PAM_PRELIM_CHECK: u32 = 0x4000;
+pub const PAM_UPDATE_AUTHTOK: u32 = 0x2000;
+
 pub const PAM_TOKEN_RETURNS: [&str; 33] = [
     "success",
     "open_err",

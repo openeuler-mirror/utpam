@@ -7,11 +7,12 @@
 #![allow(unused_variables)]
 
 use crate::common::*;
-use crate::pam_syslog;
 use crate::parse::*;
-use crate::utpam::UtpamHandle;
+use crate::utpam::{UtpamHandle, PAM_CALLED_FROM_APP};
+use crate::utpam_env::utpam_make_env;
 use crate::utpam_handlers::*;
 use crate::utpam_syslog::*;
+use crate::{pam_syslog, UTPAM_TO_APP};
 use std::path::PathBuf;
 use std::rc::Rc;
 use tklog::{debug, error, fatal, info, warn};
@@ -66,13 +67,26 @@ fn utpam_start_internal(
         user,
     ));
 
+    UTPAM_TO_APP!(&mut pamh);
+
+    //初始化环境变量
+    if utpam_make_env(&mut pamh.env) != PAM_SUCCESS {
+        pam_syslog!(
+            &pamh,
+            LOG_ERR,
+            "utpam_start: failed to initialize environment",
+            ""
+        );
+        return PAM_ABORT;
+    }
+
     //实例化UtpamHandle
     if utpam_init_handlers(&mut pamh) != PAM_SUCCESS {
         //报错信息，输出到日志
         pam_syslog!(
             &pamh,
             LOG_ERR,
-            "pam_start: failed to initialize handlers",
+            "utpam_start: failed to initialize handlers",
             ""
         );
         return PAM_ABORT;

@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
-use crate::common::{PAM_ABORT, PAM_BAD_ITEM, PAM_BUF_ERR, PAM_PERM_DENIED, PAM_SUCCESS};
+use crate::common::{PAM_ABORT, PAM_BAD_ITEM, PAM_PERM_DENIED, PAM_SUCCESS};
 use crate::utpam::{UtpamHandle, PAM_ENV_CHUNK};
 use crate::utpam_misc::utpam_strdup;
 use crate::IF_NO_UTPAMH;
@@ -16,20 +16,12 @@ pub struct UtpamEnviron {
 }
 
 /// 创建环境变量
-pub fn utpam_make_env(utpamh: &mut Option<Box<UtpamHandle>>) -> i32 {
-    //检查utpamh是否为空
-    let utpamh = IF_NO_UTPAMH!(utpamh, PAM_ABORT);
-    //初始UtpamEnviron结构体
-
-    match utpamh.env {
-        Some(ref mut env) => {
-            env.entries = PAM_ENV_CHUNK;
-            env.requested = 1;
-            env.list = Vec::new();
-        }
-        None => return PAM_BUF_ERR,
-    }
-
+pub fn utpam_make_env(env: &mut Option<UtpamEnviron>) -> i32 {
+    *env = Some(UtpamEnviron {
+        entries: PAM_ENV_CHUNK,
+        requested: 1,
+        list: Vec::new(),
+    });
     //_pam_dump_env(pamh); 待实现（输出调试信息）
     PAM_SUCCESS
 }

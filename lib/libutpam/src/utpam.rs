@@ -148,7 +148,7 @@ impl UtpamHandle {
         UtpamHandle {
             authtok: String::default(),
             pam_conversation,
-            caller_is: 12,
+            caller_is: 0,
             oldauthtok: String::default(),
             prompt: String::default(),
             service_name,

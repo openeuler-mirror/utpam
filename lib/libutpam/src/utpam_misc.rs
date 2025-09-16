@@ -225,3 +225,8 @@ pub fn utpam_sanitize(utpamh: &mut Box<UtpamHandle>) {
     utpam_set_item(utpamh, PAM_OLDAUTHTOK, None);
     utpamh.caller_is = old_caller_is;
 }
+
+//拷贝字符串
+pub fn utpam_strdup(s: &str) -> Option<String> {
+    Some(String::from(s))
+}

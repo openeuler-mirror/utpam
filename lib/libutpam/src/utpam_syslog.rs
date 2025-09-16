@@ -29,7 +29,7 @@ pub fn log_init() {
     let messagestr = ":{message}".blue(); // 信息属性标识修改为蓝色
     let s = format!("{} {} {} {}\n", levelstr, timestr, filestr, messagestr);
     //设置日志格式
-    LOG.set_formatter(s.as_str());
+    LOG.set_formatter(s.as_str()).uselog();
     // 日志写入到文件
     LOG.set_cutmode_by_time(PAM_LOG_FILE, MODE::MONTH, 0, false);
     // 设置日志级别为debug
@@ -53,29 +53,23 @@ fn _pam_choice2str(choice: i8) -> &'static str {
 #[macro_export]
 macro_rules! pam_syslog {
     ($utpamh:expr, $priority:expr, $fmt:expr, $($args:tt),*) => {{
-
-        let mut msgbuf2:String = String::new();
-        msgbuf2.push_str($fmt);
-        $(msgbuf2.push_str($args);)*
+        let msgbuf2 = format!($fmt, $($args),*);
 
         match $priority {
-            LOG_EMERG | LOG_ALERT |LOG_CRIT => {
-                fatal!(utpam_patching_msgbuf1($utpamh), msgbuf2);
-            }
-            LOG_ERR => {
-                error!(utpam_patching_msgbuf1($utpamh), msgbuf2);
+            LOG_EMERG | LOG_ALERT |LOG_CRIT | LOG_ERR => {
+                log::error!("{} {}", utpam_patching_msgbuf1($utpamh), msgbuf2);
             }
             LOG_WARNING => {
-                warn!(utpam_patching_msgbuf1($utpamh), msgbuf2);
+                log::warn!("{} {}", utpam_patching_msgbuf1($utpamh), msgbuf2);
             }
             LOG_NOTICE | LOG_INFO => {
-                info!(utpam_patching_msgbuf1($utpamh), msgbuf2);
+                log::info!("{} {}", utpam_patching_msgbuf1($utpamh), msgbuf2);
             }
             LOG_DEBUG => {
-                debug!(utpam_patching_msgbuf1($utpamh), msgbuf2);
+                log::debug!("{} {}", utpam_patching_msgbuf1($utpamh), msgbuf2);
             }
             _ => {
-                debug!(utpam_patching_msgbuf1($utpamh), msgbuf2);
+                log::debug!("{} {}", utpam_patching_msgbuf1($utpamh), msgbuf2);
             }
         }
     }};

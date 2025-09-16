@@ -15,7 +15,6 @@ use crate::utpam_syslog::*;
 use crate::{pam_syslog, UTPAM_TO_APP};
 use std::path::PathBuf;
 use std::rc::Rc;
-use tklog::{debug, error, fatal, info, warn};
 
 pub fn utpam_start(
     service_name: String,
@@ -75,7 +74,6 @@ fn utpam_start_internal(
             &pamh,
             LOG_ERR,
             "utpam_start: failed to initialize environment",
-            ""
         );
         return PAM_ABORT;
     }
@@ -83,12 +81,7 @@ fn utpam_start_internal(
     //实例化UtpamHandle
     if utpam_init_handlers(&mut pamh) != PAM_SUCCESS {
         //报错信息，输出到日志
-        pam_syslog!(
-            &pamh,
-            LOG_ERR,
-            "utpam_start: failed to initialize handlers",
-            ""
-        );
+        pam_syslog!(&pamh, LOG_ERR, "utpam_start: failed to initialize handlers",);
         return PAM_ABORT;
     }
 

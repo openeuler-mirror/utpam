@@ -46,6 +46,8 @@ pub const PAM_SUBSTACK_MAX_LEVEL: i32 = 16;
 
 pub const _PAM_INVALID_RETVAL: i32 = -1;
 
+pub const PAM_ENV_CHUNK: i32 = 10;
+
 pub const UTPAM_CONFIG: &str = "/etc/utpam.conf";
 pub const UTPAM_CONFIG_D: &str = "/etc/utpam.d";
 pub const UTPAM_CONFIG_DIST_D: &str = "/usr/lib/utpam.d";
@@ -122,7 +124,7 @@ pub struct UtpamHandle {
     pub(super) xdisplay: String,
     pub(super) authtok_type: String,
     pub(super) data: UtpamData,
-    pub(super) env: UtpamEnviron,
+    pub(super) env: Option<UtpamEnviron>,
     pub(super) fail_delay: UtpamFailDelay,
     pub(super) xauth: UtpamXAuthData,
     pub(super) handlers: Service,
@@ -162,7 +164,7 @@ impl UtpamHandle {
                 cleanup: None,
                 next: None,
             },
-            env: UtpamEnviron::default(),
+            env: None,
             fail_delay: UtpamFailDelay::default(),
             xauth: UtpamXAuthData {
                 namelen: 0,

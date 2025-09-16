@@ -32,6 +32,10 @@ pub fn log_init() {
     LOG.set_formatter(s.as_str());
     // 日志写入到文件
     LOG.set_cutmode_by_time(PAM_LOG_FILE, MODE::MONTH, 0, false);
+    // 设置日志级别为debug
+    LOG.set_level(tklog::LEVEL::Debug);
+    //开启同步写入日志
+    LOG.set_printmode(tklog::PRINTMODE::PUNCTUAL);
 }
 
 fn _pam_choice2str(choice: i8) -> &'static str {

@@ -10,6 +10,7 @@ use crate::utpam_delay::UtpamFailDelay;
 use crate::utpam_env::UtpamEnviron;
 
 use libloading::Library;
+use std::any::Any;
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -123,7 +124,7 @@ pub struct UtpamHandle {
     pub(super) tty: String,
     pub(super) xdisplay: String,
     pub(super) authtok_type: String,
-    pub(super) data: UtpamData,
+    pub(super) data: Option<Box<UtpamData>>,
     pub(super) env: Option<UtpamEnviron>,
     pub(super) fail_delay: UtpamFailDelay,
     pub(super) xauth: UtpamXAuthData,
@@ -158,12 +159,7 @@ impl UtpamHandle {
             tty: String::default(),
             xdisplay: String::default(),
             authtok_type: String::default(),
-            data: UtpamData {
-                name: None,
-                data: Box::new(()),
-                cleanup: None,
-                next: None,
-            },
+            data: None,
             env: None,
             fail_delay: UtpamFailDelay::default(),
             xauth: UtpamXAuthData {
@@ -226,14 +222,14 @@ impl UtpamHandle {
     //     }
 }
 
-type CleanupFn = fn(&mut Option<Box<UtpamHandle>>, Vec<String>, i32);
+pub type CleanupFn = fn(&mut UtpamHandle, Option<Rc<dyn Any>>, i32);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct UtpamData {
-    pub(super) name: Option<String>,
-    pub(super) data: Box<dyn std::any::Any>, // 表示可以存储任何类型的数据。Box<dyn Any> 是一个智能指针，它指向一个实现了 Any trait 的值。
-    pub(super) cleanup: Option<Box<CleanupFn>>,
-    pub(super) next: Option<Box<UtpamData>>, //待定
+    pub(super) name: String,
+    pub(super) data: Option<Rc<dyn Any>>, //存放任意类型数据
+    pub(super) cleanup: Option<CleanupFn>,
+    pub(super) next: Option<Box<UtpamData>>,
 }
 
 #[derive(Debug, Clone)]

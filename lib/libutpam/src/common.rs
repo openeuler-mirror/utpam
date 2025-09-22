@@ -69,6 +69,8 @@ pub const PAM_ESTABLISH_CRED: u32 = 0x0002;
 pub const PAM_PRELIM_CHECK: u32 = 0x4000;
 pub const PAM_UPDATE_AUTHTOK: u32 = 0x2000;
 
+pub const PAM_DATA_REPLACE: i32 = 0x20000000;
+
 pub const PAM_SILENT: u32 = 0x8000;
 
 pub const PAM_MAX_MSG_SIZE: usize = 512;

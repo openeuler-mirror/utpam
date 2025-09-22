@@ -12,7 +12,11 @@
     unused_comparisons,
     non_upper_case_globals,
     clippy::absurd_extreme_comparisons,
-    clippy::never_loop
+    clippy::never_loop,
+    unused_imports,
+    unused_must_use,
+    clippy::write_with_newline,
+    clippy::redundant_static_lifetimes
 )]
 
 use std::any::Any;
@@ -187,4 +191,62 @@ pub fn misc_conv(
         }
     }
     PAM_CONV_ERR as isize
+}
+
+//utget_delay函数被用于read_string函数，主要作用为获取时间差值，来计算延迟
+//主要涉及两个时间概念：警告时间，终止时间
+//首先会获取当前时间，分别比较当前时间与上述两种时间，返回的是当前时间与警告（终止）时间的差值
+//从整个项目来看，应该是跟安全性有关，在read_string读取用户输入时进行一定的延迟，类似防暴力破解的功能
+use std::time::SystemTime;
+
+use std::ffi::CString;
+use std::time::UNIX_EPOCH;
+
+const pam_misc_conv_warn_line: &'static str = "...Time is running out...\n";
+const pam_misc_conv_die_line: &'static str = "...Sorry, your time is up!\n";
+static mut expired: i32 = 0;
+#[no_mangle]
+pub fn utget_delay() -> i32 {
+    let mut pam_misc_conv_warn_time: u64 = 0; //警告时间，到达时间，如打印警告信息；
+    let mut pam_misc_conv_die_time: u64 = 0; //终止时间，如退出或关闭某个服务；
+    let mut pam_misc_conv_died: i64 = 0;
+    let mut now = 0_isize;
+
+    unsafe {
+        expired = 0;
+    }
+    // 获取当前系统时间
+    let now_tt = SystemTime::now();
+    // 计算自UNIX_EPOCH以来的持续时间
+    let since_epoch = now_tt
+        .duration_since(UNIX_EPOCH)
+        .expect("Time went backwards");
+    // 将持续时间转换为秒数
+    let now = since_epoch.as_secs();
+
+    if pam_misc_conv_die_time != 0 && now >= pam_misc_conv_die_time {
+        //write!(io::stderr(),"{:?}\n",pam_misc_conv_die_line);
+        writeln!(io::stderr(), "{:?}", pam_misc_conv_die_line);
+        pam_misc_conv_died = 1;
+        return -1;
+    }
+
+    if pam_misc_conv_warn_time != 0 && now >= pam_misc_conv_warn_time {
+        //write!(io::stderr(),"{:?}\n",pam_misc_conv_warn_line);
+        writeln!(io::stderr(), "{:?}", pam_misc_conv_warn_line);
+        pam_misc_conv_warn_time = 0;
+        if pam_misc_conv_die_time != 0 {
+            return (pam_misc_conv_die_time - now) as i32;
+        } else {
+            return 0;
+        }
+    }
+
+    if pam_misc_conv_warn_time != 0 {
+        (pam_misc_conv_warn_time - now) as i32
+    } else if pam_misc_conv_die_time != 0 {
+        (pam_misc_conv_die_time - now) as i32
+    } else {
+        return 0;
+    }
 }

@@ -17,6 +17,7 @@ pub mod utpam_env;
 pub mod utpam_handlers;
 pub mod utpam_item;
 pub mod utpam_misc;
+pub mod utpam_modutil_check_user;
 pub mod utpam_modutil_cleanup;
 pub mod utpam_modutil_ioloop;
 pub mod utpam_password;

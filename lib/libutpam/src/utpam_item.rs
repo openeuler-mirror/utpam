@@ -7,10 +7,10 @@
 use crate::common::*;
 use crate::utpam::*;
 use crate::utpam_delay::DelayFnPtr;
-use crate::{utpam_overwrite_string, UTPAM_FROM_MODULE};
+use crate::utpam_syslog::*;
+use crate::{pam_syslog, utpam_overwrite_string, IF_NO_UTPAMH, UTPAM_FROM_MODULE};
 use std::any::Any;
 use std::rc::Rc;
-use users::get_current_username;
 use zeroize::Zeroize;
 
 /// 更新UtpamHandle结构体字段
@@ -47,7 +47,7 @@ pub fn utpam_set_item(utpamh: &mut UtpamHandle, item_type: i32, item: Option<Box
             TRY_SET!(utpamh.user, item, String);
         }
         PAM_USER_PROMPT => {
-            TRY_SET!(utpamh.prompt, item, String);
+            TRY_SET!(utpamh.prompt, item, Option<String>);
             utpamh.former.fail_user = PAM_SUCCESS;
         }
         PAM_TTY => {
@@ -202,12 +202,110 @@ pub fn utpam_get_item(utpamh: &UtpamHandle, item_type: i32, item: &mut Box<dyn A
     retval
 }
 
-/// 获取当前用户名
-pub fn get_username() -> String {
-    match get_current_username() {
-        Some(username) => username.to_string_lossy().into_owned(),
+/// 获取用户名，并存储在utpamh 中。
+pub fn utpam_get_user(
+    utpamh: &mut Option<Box<UtpamHandle>>,
+    user: &mut Option<String>,
+    prompt: &mut Option<String>,
+) -> i32 {
+    let mut use_prompt = &mut String::new();
+
+    //检查utpamh是否为空
+    let utpamh = IF_NO_UTPAMH!(utpamh, PAM_SYSTEM_ERR);
+
+    if !utpamh.user.is_empty() {
+        *user = Some(utpamh.user.clone());
+        return PAM_SUCCESS;
+    }
+
+    if utpamh.former.fail_user != PAM_SUCCESS {
+        return utpamh.former.fail_user;
+    }
+
+    match prompt {
+        Some(p) => {
+            use_prompt = p;
+        }
         None => {
-            "login:".to_string() // 如果获取用户名失败，返回默认值
+            if let Some(ref mut prompt) = utpamh.prompt {
+                *use_prompt = prompt.to_string();
+            };
+            *use_prompt = "login:".to_string();
         }
     }
+
+    if utpamh.former.want_user.to_bool() {
+        match utpamh.former.prompt {
+            Some(ref mut former_prompt) => {
+                if former_prompt != use_prompt {
+                    pam_syslog!(
+                        &utpamh,
+                        LOG_ERR,
+                        "utpam_get_user: resumed with different prompt",
+                    );
+                    return PAM_ABORT;
+                }
+                utpamh.former.want_user = UtpamBoolean::UtpamFalse;
+                utpam_overwrite_string!(former_prompt);
+            }
+            None => {
+                pam_syslog!(
+                    &utpamh,
+                    LOG_ERR,
+                    "utpam_get_user: failed to resume with prompt",
+                );
+                return PAM_ABORT;
+            }
+        }
+    }
+
+    let mut msg = UtpamMessage {
+        msg_style: 0,
+        msg: vec![],
+    };
+    msg.msg_style = PAM_PROMPT_ECHO_ON;
+    msg.msg = vec![use_prompt.to_string()];
+    let resp: &mut Option<Vec<UtpamResponse>> = &mut None;
+
+    // 调用conv()函数，只获取1条消息
+    let mut retval = (utpamh.pam_conversation.conv)(
+        1,
+        &[msg],
+        resp,
+        utpamh.pam_conversation.appdata_ptr.clone(),
+    ) as i32;
+
+    match retval {
+        PAM_SUCCESS | PAM_BUF_ERR | PAM_CONV_AGAIN | PAM_CONV_ERR => {}
+        _ => retval = PAM_CONV_ERR,
+    }
+    match retval {
+        PAM_CONV_AGAIN => {
+            utpamh.former.want_user = UtpamBoolean::UtpamTrue;
+            utpamh.former.prompt = Some(use_prompt.to_string());
+        }
+        PAM_SUCCESS => match resp {
+            Some(res) => {
+                if res[0].resp.is_empty() {
+                    retval = utpam_set_item(utpamh, PAM_USER, Some(Box::new(res[0].resp.clone())));
+                    *user = Some(utpamh.user.clone());
+                }
+            }
+            None => {
+                println!("no response provided");
+                return PAM_CONV_ERR;
+            }
+        },
+        _ => utpamh.former.fail_user = retval,
+    }
+
+    if resp.is_some() && retval != PAM_SUCCESS {
+        pam_syslog!(
+            &utpamh,
+            LOG_WARNING,
+            "unexpected response from failed conversation function",
+        );
+    };
+
+    retval
 }

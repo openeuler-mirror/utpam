@@ -26,8 +26,8 @@ pub fn utpam_end(utpamh: &mut Option<Box<UtpamHandle>>, pam_status: i32) -> i32 
     utpam_overwrite_string!(utpamh.authtok);
     utpam_overwrite_string!(utpamh.oldauthtok);
 
-    if let Some(ref mut prompt) = utpamh.former.prompt {
-        utpam_overwrite_string!(prompt);
+    if let Some(ref mut former_prompt) = utpamh.former.prompt {
+        utpam_overwrite_string!(former_prompt);
     }
     utpam_overwrite_string!(utpamh.service_name);
     utpam_overwrite_string!(utpamh.user);
@@ -35,8 +35,9 @@ pub fn utpam_end(utpamh: &mut Option<Box<UtpamHandle>>, pam_status: i32) -> i32 
     if let Some(ref mut confdir) = utpamh.confdir.to_str() {
         utpam_overwrite_string!(confdir.to_string());
     }
-
-    utpam_overwrite_string!(utpamh.prompt);
+    if let Some(ref mut prompt) = utpamh.prompt {
+        utpam_overwrite_string!(prompt);
+    }
     utpam_overwrite_string!(utpamh.tty);
     utpam_overwrite_string!(utpamh.rhost);
     utpam_overwrite_string!(utpamh.ruser);

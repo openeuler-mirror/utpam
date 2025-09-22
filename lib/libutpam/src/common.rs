@@ -6,6 +6,7 @@
 #![allow(dead_code, unused_mut, unused_variables)]
 ///存放utpam公共的结构体和常量
 use std::any::Any;
+use std::rc::Rc;
 
 pub const PAM_SUCCESS: i32 = 0;
 pub const PAM_OPEN_ERR: i32 = 1;
@@ -75,6 +76,8 @@ pub const PAM_SILENT: u32 = 0x8000;
 
 pub const PAM_MAX_MSG_SIZE: usize = 512;
 
+pub const PAM_PROMPT_ECHO_ON: isize = 2;
+
 pub const PAM_TOKEN_RETURNS: [&str; 33] = [
     "success",
     "open_err",
@@ -134,13 +137,13 @@ pub type MiscConv = fn(
     num_msg: isize,
     msg: &[UtpamMessage],
     resp: &mut Option<Vec<UtpamResponse>>,
-    appdata_ptr: Option<Box<dyn Any>>,
+    appdata_ptr: Option<Rc<dyn Any>>,
 ) -> isize;
 
 #[derive(Debug)]
 pub struct UtpamConv {
     pub conv: MiscConv,
-    pub appdata_ptr: Option<Box<dyn Any>>,
+    pub appdata_ptr: Option<Rc<dyn Any>>,
 }
 pub struct UtpamResponse {
     pub resp: Vec<String>,

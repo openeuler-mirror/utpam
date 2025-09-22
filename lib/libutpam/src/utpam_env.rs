@@ -27,13 +27,7 @@ pub fn utpam_make_env(env: &mut Option<UtpamEnviron>) -> i32 {
 }
 
 /// 销毁环境变量
-pub fn utpam_drop_env(utpamh: &mut Option<Box<UtpamHandle>>) {
-    //检查utpamh是否为空
-    let utpamh = match utpamh {
-        Some(ref mut value) => value,
-        None => return,
-    };
-
+pub fn utpam_drop_env(utpamh: &mut Box<UtpamHandle>) {
     match utpamh.env {
         Some(ref mut env) => {
             // 清空环境变量列表

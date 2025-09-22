@@ -23,7 +23,7 @@ pub fn utpam_locate_data<'a>(utpamh: &'a UtpamHandle, name: &'a str) -> Option<&
 /// 设置指定模块的数据
 pub fn utpam_set_data(
     utpamh: &mut Option<Box<UtpamHandle>>,
-    module_data_name: Option<String>,
+    module_data_name: Option<&str>,
     data: Option<Rc<dyn Any>>,
     cleanup: Option<CleanupFn>,
 ) -> i32 {
@@ -50,7 +50,7 @@ pub fn utpam_set_data(
     };
 
     // 查找数据
-    let mut utpamdata = utpam_locate_data(utpamh, &module_data_name).cloned();
+    let mut utpamdata = utpam_locate_data(utpamh, module_data_name).cloned();
     match utpamdata {
         Some(ref mut entry) => {
             // 如果存在cleanup函数，则调用
@@ -62,7 +62,7 @@ pub fn utpam_set_data(
             // 如果不存在，则创建一个新的数据条目
             data_entry.next = utpamh.data.take();
             utpamh.data = Some(Box::new(data_entry.clone()));
-            data_entry.name = module_data_name;
+            data_entry.name = module_data_name.to_string();
         }
     }
 
@@ -76,7 +76,7 @@ pub fn utpam_set_data(
 // 获取数据
 pub fn utpam_get_data(
     utpamh: &mut Option<Box<UtpamHandle>>,
-    module_data_name: Option<String>,
+    module_data_name: Option<&str>,
     datap: &mut Option<Rc<dyn Any>>,
 ) -> i32 {
     let utpamh = IF_NO_UTPAMH!(utpamh, PAM_SYSTEM_ERR);
@@ -94,7 +94,7 @@ pub fn utpam_get_data(
         }
     };
 
-    if let Some(data_entry) = utpam_locate_data(utpamh, &module_data_name) {
+    if let Some(data_entry) = utpam_locate_data(utpamh, module_data_name) {
         *datap = data_entry.data.clone();
         return PAM_SUCCESS;
     }

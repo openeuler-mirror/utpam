@@ -21,7 +21,7 @@ pub fn utpam_start(
     user: Option<String>,
     utpam_conversation: UtpamConv,
     mut utpamh: &mut Option<Box<UtpamHandle>>,
-) -> i32 {
+) -> u8 {
     utpam_start_internal(service_name, user, utpam_conversation, None, utpamh)
 }
 
@@ -31,7 +31,7 @@ pub fn utpam_stat_confdir(
     utpam_conversation: UtpamConv,
     confdir: PathBuf,
     mut utpamh: &mut Option<Box<UtpamHandle>>,
-) -> i32 {
+) -> u8 {
     utpam_start_internal(
         service_name,
         user,
@@ -47,7 +47,7 @@ fn utpam_start_internal(
     utpam_conversation: UtpamConv,
     confdir: Option<PathBuf>,
     mut utpamh: &mut Option<Box<UtpamHandle>>,
-) -> i32 {
+) -> u8 {
     //初始化日志
     log_init();
     //处理服务名称

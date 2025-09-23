@@ -26,7 +26,7 @@ pub fn utpam_set_data(
     module_data_name: Option<&str>,
     data: Option<Rc<dyn Any>>,
     cleanup: Option<CleanupFn>,
-) -> i32 {
+) -> u8 {
     let mut data_entry = UtpamData {
         name: String::default(),
         data: None,
@@ -55,7 +55,11 @@ pub fn utpam_set_data(
         Some(ref mut entry) => {
             // 如果存在cleanup函数，则调用
             if let Some(ref mut cleanup) = entry.cleanup {
-                cleanup(utpamh, entry.data.clone(), PAM_DATA_REPLACE | PAM_SUCCESS)
+                cleanup(
+                    utpamh,
+                    entry.data.clone(),
+                    PAM_DATA_REPLACE | PAM_SUCCESS as i32,
+                )
             }
         }
         None => {
@@ -78,7 +82,7 @@ pub fn utpam_get_data(
     utpamh: &mut Option<Box<UtpamHandle>>,
     module_data_name: Option<&str>,
     datap: &mut Option<Rc<dyn Any>>,
-) -> i32 {
+) -> u8 {
     let utpamh = IF_NO_UTPAMH!(utpamh, PAM_SYSTEM_ERR);
 
     if UTPAM_FROM_APP!(utpamh) {

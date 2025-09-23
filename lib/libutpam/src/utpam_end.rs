@@ -12,7 +12,7 @@ use crate::{utpam_overwrite_string, IF_NO_UTPAMH, UTPAM_FROM_MODULE};
 use zeroize::Zeroize;
 
 //utpam_overwrite_string宏用来清理字符串
-pub fn utpam_end(utpamh: &mut Option<Box<UtpamHandle>>, pam_status: i32) -> i32 {
+pub fn utpam_end(utpamh: &mut Option<Box<UtpamHandle>>, pam_status: i32) -> u8 {
     let utpamh = IF_NO_UTPAMH!(utpamh, PAM_SYSTEM_ERR);
 
     if UTPAM_FROM_MODULE!(utpamh) {

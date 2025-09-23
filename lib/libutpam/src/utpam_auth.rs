@@ -11,7 +11,7 @@ use crate::utpam_dispatch::utpam_dispatch;
 use crate::utpam_misc::utpam_sanitize;
 use crate::{IF_NO_UTPAMH, UTPAM_FROM_MODULE};
 
-pub fn utpam_authenticate(utpamh: &mut Option<Box<UtpamHandle>>, flags: u32) -> i32 {
+pub fn utpam_authenticate(utpamh: &mut Option<Box<UtpamHandle>>, flags: u32) -> u8 {
     ////检查utpamh是否为空
     let utpamh = IF_NO_UTPAMH!(utpamh, PAM_SYSTEM_ERR);
 
@@ -38,7 +38,7 @@ pub fn utpam_authenticate(utpamh: &mut Option<Box<UtpamHandle>>, flags: u32) -> 
     retval
 }
 
-pub fn utpam_setcred(utpamh: &mut Option<Box<UtpamHandle>>, mut flags: u32) -> i32 {
+pub fn utpam_setcred(utpamh: &mut Option<Box<UtpamHandle>>, mut flags: u32) -> u8 {
     let utpamh = IF_NO_UTPAMH!(utpamh, PAM_SYSTEM_ERR);
 
     if flags != 0 {

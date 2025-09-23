@@ -17,7 +17,7 @@ use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 //pub type DelayFnPtr = Box<dyn Fn(i32, u32, Option<&dyn Any>) + Send + Sync>; //表示一个可以发送和同步的闭包
-pub type DelayFnPtr = fn(i32, u32, Option<&dyn Any>) -> u64;
+pub type DelayFnPtr = fn(u8, u32, Option<&dyn Any>) -> u64;
 
 #[derive(Debug, Clone)]
 pub struct UtpamFailDelay {
@@ -86,7 +86,7 @@ impl Default for UtpamFailDelay {
 }
 
 /// 根据计算出的延迟时间，执行等待操作
-pub fn utpam_await_timer(utpamh: &mut Box<UtpamHandle>, status: i32) {
+pub fn utpam_await_timer(utpamh: &mut Box<UtpamHandle>, status: u8) {
     let fail_delay = &mut utpamh.fail_delay;
 
     // 将当前时间转换为从 Unix 纪元开始的秒数

@@ -11,13 +11,13 @@ use crate::{pam_syslog, IF_NO_UTPAMH};
 
 #[derive(Debug)]
 pub struct UtpamEnviron {
-    entries: i32,
+    entries: u8,
     requested: usize,
     list: Vec<String>,
 }
 
 /// 创建环境变量
-pub fn utpam_make_env(env: &mut Option<UtpamEnviron>) -> i32 {
+pub fn utpam_make_env(env: &mut Option<UtpamEnviron>) -> u8 {
     *env = Some(UtpamEnviron {
         entries: PAM_ENV_CHUNK,
         requested: 1,
@@ -62,7 +62,7 @@ fn utpam_search_env(env: &UtpamEnviron, name_value: &str, length: usize) -> i32 
 }
 
 /// 添加、替换或删除环境变量
-pub fn utpam_putenv(utpamh: &mut Option<Box<UtpamHandle>>, name_value: &str) -> i32 {
+pub fn utpam_putenv(utpamh: &mut Option<Box<UtpamHandle>>, name_value: &str) -> u8 {
     let utpamh = IF_NO_UTPAMH!(utpamh, PAM_ABORT);
 
     if name_value.is_empty() {
@@ -199,7 +199,7 @@ pub fn utpam_getenvlist(utpamh: &mut Option<Box<UtpamHandle>>) -> Option<Vec<Str
         return None;
     }
 
-    if env.requested as i32 > env.entries {
+    if env.requested as u8 > env.entries {
         pam_syslog!(
             &utpamh,
             LOG_ERR,

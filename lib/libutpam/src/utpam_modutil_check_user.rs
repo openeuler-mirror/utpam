@@ -16,7 +16,7 @@ pub fn utpam_modutil_check_user_in_passwd(
     utpamh: &mut Box<UtpamHandle>,
     user_name: Option<&str>,
     file_name: Option<&str>,
-) -> i32 {
+) -> u8 {
     let user_name = match user_name {
         Some(f) => f,
         None => {

@@ -35,8 +35,8 @@ const UNKNOWN_MODULE: &str = "unknown module";
 const DEFAULT_MODULE_PATH: &str = "/lib64/security";
 
 //初始化UtpamHandle结构体字段
-pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> i32 {
-    let mut retval: i32;
+pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> u8 {
+    let mut retval: u8;
 
     //如果所有内容都已加载，则立即返回
     if utpamh.handlers.handlers_loaded != 0 {
@@ -86,7 +86,7 @@ pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> i32 {
                     "utpam_init_handlers: error reading {}",
                     path
                 );
-                let err = pam_strerror(utpamh, LOG_ERR as i64);
+                let err = pam_strerror(utpamh, LOG_ERR);
                 pam_syslog!(&utpamh, LOG_ERR, "utpam_init_handlers [{}]", err);
             } else {
                 read_something = 1;
@@ -128,7 +128,7 @@ pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> i32 {
                         "utpam_init_handlers: error reading {}",
                         path
                     );
-                    let err = pam_strerror(utpamh, LOG_ERR as i64);
+                    let err = pam_strerror(utpamh, LOG_ERR);
                     pam_syslog!(&utpamh, LOG_ERR, "utpam_init_handlers: [{}]", err);
                 } else {
                     read_something = 1;
@@ -184,7 +184,7 @@ fn utpam_open_config_file(
     service: String,
     path: &mut Option<PathBuf>,
     file: &mut Option<File>,
-) -> i32 {
+) -> u8 {
     let mut path_buf = PathBuf::new();
 
     let dirs = [UTPAM_CONFIG_D, UTPAM_CONFIG_DIST_D];
@@ -244,10 +244,10 @@ fn utpam_load_conf_file(
     include_level: i32,
     stack_level: i32,
     not_other: bool,
-) -> i32 {
+) -> u8 {
     let mut file: Option<File> = None;
     let mut path: Option<PathBuf> = None;
-    let mut retval: i32 = PAM_ABORT;
+    let mut retval: u8 = PAM_ABORT;
 
     //检查是否超过了最大允许的嵌套层次
     if include_level >= PAM_SUBSTACK_MAX_LEVEL {
@@ -301,7 +301,7 @@ fn utpam_parse_config_file(
     include_level: i32,
     stack_level: i32,
     not_other: bool,
-) -> i32 {
+) -> u8 {
     let mut f = BufReader::new(file);
     let mut buffer = UtpamLineBuffer::default();
     let repl = String::from(" ");
@@ -579,7 +579,7 @@ fn extract_modulename(mod_path: &str) -> Option<String> {
 fn utpam_load_module(
     utpamh: &mut Vec<LoadedModule>,
     mod_path: String,
-    handler_type: i32,
+    handler_type: u8,
 ) -> Option<&LoadedModule> {
     let mods = utpamh;
 
@@ -651,7 +651,7 @@ fn utpam_load_module(
 //添加处理程序
 fn utpam_add_handler(
     utpamh: &mut Box<UtpamHandle>,
-    handler_type: i32,
+    handler_type: u8,
     other: bool,
     stack_level: i32,
     module_type: i32,
@@ -659,7 +659,7 @@ fn utpam_add_handler(
     mod_path: &Option<String>,
     argc: i32,
     argv: &[String],
-) -> i32 {
+) -> u8 {
     let mut load_module = None;
 
     //let mut mod_type: i32 = PAM_MT_FAULTY_MOD;

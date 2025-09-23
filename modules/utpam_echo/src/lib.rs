@@ -13,7 +13,7 @@ use utpam::utpam_item::utpam_get_item;
 use utpam::utpam_modutil_ioloop::utpam_modutil_read;
 
 //替换消息中的占位符，并将最终的消息输出到日志中
-fn replace_and_print(utpamh: &UtpamHandle, mesg: &str) -> i32 {
+fn replace_and_print(utpamh: &UtpamHandle, mesg: &str) -> u8 {
     let mut output = Vec::with_capacity(mesg.len() + PAM_MAX_MSG_SIZE); // 为输出字符串预留足够空间
     let mut p = mesg.chars().peekable();
     let mut item = 0;
@@ -90,7 +90,7 @@ fn utpam_echo(
     flags: u32,
     argc: Option<i32>,
     argv: Option<Vec<String>>,
-) -> i32 {
+) -> u8 {
     let mut file: Option<String> = None;
     let mut retval;
 
@@ -176,7 +176,7 @@ pub fn utpam_sm_authenticate(
     flags: u32,
     argc: Option<i32>,
     argv: Option<Vec<String>>,
-) -> i32 {
+) -> u8 {
     utpam_echo(utpamh, flags, argc, argv)
 }
 
@@ -187,7 +187,7 @@ pub fn utpam_sm_setcred(
     _flags: i32,
     _argc: Option<i32>,
     _argv: Option<Vec<String>>,
-) -> i32 {
+) -> u8 {
     PAM_IGNORE
 }
 
@@ -197,7 +197,7 @@ pub fn utpam_sm_acct_mgmt(
     flags: u32,
     argc: Option<i32>,
     argv: Option<Vec<String>>,
-) -> i32 {
+) -> u8 {
     utpam_echo(utpamh, flags, argc, argv)
 }
 
@@ -207,7 +207,7 @@ pub fn utpam_sm_open_session(
     flags: u32,
     argc: Option<i32>,
     argv: Option<Vec<String>>,
-) -> i32 {
+) -> u8 {
     utpam_echo(utpamh, flags, argc, argv)
 }
 
@@ -217,7 +217,7 @@ pub fn utpam_sm_close_session(
     _flags: i32,
     _argc: Option<i32>,
     _argv: Option<Vec<String>>,
-) -> i32 {
+) -> u8 {
     PAM_IGNORE
 }
 
@@ -227,7 +227,7 @@ pub fn utpam_sm_chauthtok(
     flags: u32,
     argc: Option<i32>,
     argv: Option<Vec<String>>,
-) -> i32 {
+) -> u8 {
     if flags & PAM_PRELIM_CHECK != 0 {
         utpam_echo(utpamh, flags, argc, argv)
     } else {

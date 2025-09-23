@@ -34,7 +34,7 @@ macro_rules! TRY_SET {
 }
 
 // 设置UtpamHandle结构体中的特定项:
-pub fn utpam_set_item(utpamh: &mut UtpamHandle, item_type: i32, item: Option<Box<dyn Any>>) -> i32 {
+pub fn utpam_set_item(utpamh: &mut UtpamHandle, item_type: i8, item: Option<Box<dyn Any>>) -> u8 {
     let mut retval = PAM_SUCCESS;
 
     match item_type {
@@ -144,7 +144,7 @@ pub fn utpam_set_item(utpamh: &mut UtpamHandle, item_type: i32, item: Option<Box
  *   2. 使用 .clone() 方法克隆字符串和其他类型的数据，确保不会影响原始数据；
  *   3. 对于无法克隆的数据，使用Rc<T>来包装数据，并使用 .clone() 方法获取一个引用，而不是复制数据。
  */
-pub fn utpam_get_item(utpamh: &UtpamHandle, item_type: i32, item: &mut Box<dyn Any>) -> i32 {
+pub fn utpam_get_item(utpamh: &UtpamHandle, item_type: i8, item: &mut Box<dyn Any>) -> u8 {
     let mut retval = PAM_SUCCESS;
 
     // 根据item_type选择要返回的数据
@@ -207,7 +207,7 @@ pub fn utpam_get_user(
     utpamh: &mut Option<Box<UtpamHandle>>,
     user: &mut Option<String>,
     prompt: &mut Option<String>,
-) -> i32 {
+) -> u8 {
     let mut use_prompt = &mut String::new();
 
     //检查utpamh是否为空
@@ -273,7 +273,7 @@ pub fn utpam_get_user(
         &[msg],
         resp,
         utpamh.pam_conversation.appdata_ptr.clone(),
-    ) as i32;
+    ) as u8;
 
     match retval {
         PAM_SUCCESS | PAM_BUF_ERR | PAM_CONV_AGAIN | PAM_CONV_ERR => {}

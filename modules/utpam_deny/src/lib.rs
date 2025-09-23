@@ -14,7 +14,7 @@ pub fn utpam_sm_authenticate(
     _flags: i32,
     _argc: Option<i32>,
     _argv: Option<Vec<String>>,
-) -> i32 {
+) -> u8 {
     PAM_SESSION_ERR
 }
 
@@ -24,7 +24,7 @@ pub fn utpam_sm_setcred(
     _flags: i32,
     _argc: Option<i32>,
     _argv: Option<Vec<String>>,
-) -> i32 {
+) -> u8 {
     PAM_SESSION_ERR
 }
 
@@ -34,7 +34,7 @@ pub fn utpam_sm_acct_mgmt(
     _flags: i32,
     _argc: Option<i32>,
     _argv: Option<Vec<String>>,
-) -> i32 {
+) -> u8 {
     PAM_SESSION_ERR
 }
 
@@ -44,7 +44,7 @@ pub fn utpam_sm_chauthtok(
     _flags: i32,
     _argc: Option<i32>,
     _argv: Option<Vec<String>>,
-) -> i32 {
+) -> u8 {
     PAM_SESSION_ERR
 }
 
@@ -54,7 +54,7 @@ pub fn utpam_sm_open_session(
     _flags: i32,
     _argc: Option<i32>,
     _argv: Option<Vec<String>>,
-) -> i32 {
+) -> u8 {
     PAM_SESSION_ERR
 }
 
@@ -64,6 +64,6 @@ pub fn utpam_sm_close_session(
     _flags: i32,
     _argc: Option<i32>,
     _argv: Option<Vec<String>>,
-) -> i32 {
+) -> u8 {
     PAM_SESSION_ERR
 }

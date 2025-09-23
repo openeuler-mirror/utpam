@@ -24,13 +24,13 @@ use utpam::utpam_strerror::pam_strerror;
 //spi；
 //遗留部分为debug，fn pam_putenv,fn pam_strerror,
 #[no_mangle]
-pub fn utpam_misc_paste_env(utpamh: &mut Box<UtpamHandle>, user_env: &[&str]) -> i64 {
+pub fn utpam_misc_paste_env(utpamh: &mut Box<UtpamHandle>, user_env: &[&str]) -> u8 {
     for env_var in user_env.iter().filter(|s| !s.is_empty()) {
-        let mut retval = 0 as i64;
+        let mut retval: u8 = 0;
 
         println!("uploading: {}", env_var); //debug
                                             //retval = pam_putenv(pamh,env_var);
-        if retval != PAM_SUCCESS as i64 {
+        if retval != PAM_SUCCESS {
             println!(
                 "error setting {:?}: {:?}",
                 env_var,
@@ -40,7 +40,7 @@ pub fn utpam_misc_paste_env(utpamh: &mut Box<UtpamHandle>, user_env: &[&str]) ->
         }
     }
     println!("done."); //debug
-    PAM_SUCCESS as i64
+    PAM_SUCCESS
 }
 
 /*
@@ -66,16 +66,16 @@ pub fn utpam_misc_setenv(
     name: &'static str,
     value: &'static str,
     readonly: i64,
-) -> i64 {
+) -> u8 {
     let mut tmp: String = Default::default();
-    let mut retval: i32 = 0;
+    let mut retval: u8 = 0;
 
     if readonly != 0 {
         let etmp: Option<&'static str> = None;
         //etmp = pam_getenv(utpamh,name);
         if let Some(s) = etmp {
             println!("failed to set readonly variable: {}", name); //debug
-            return PAM_PERM_DENIED.into();
+            return PAM_PERM_DENIED;
         }
     }
 
@@ -88,5 +88,5 @@ pub fn utpam_misc_setenv(
         println!("malloc failure"); //debug
         retval = PAM_BUF_ERR;
     }
-    retval.into()
+    retval
 }

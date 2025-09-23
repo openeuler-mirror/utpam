@@ -12,11 +12,11 @@
     clippy::needless_return
 )]
 
+use crate::common::*;
 use crate::utpam::UtpamHandle;
-
 //未补充完，需要调用国际化函数tgettext();
 #[no_mangle]
-pub fn pam_strerror(utpamh: &mut Box<UtpamHandle>, errnum: i64) -> &'static str {
+pub fn pam_strerror(utpamh: &mut Box<UtpamHandle>, errnum: u8) -> &'static str {
     match errnum {
         PAM_SUCCESS => return "Success",
         PAM_ABORT => return "Critical error - immediate abort",

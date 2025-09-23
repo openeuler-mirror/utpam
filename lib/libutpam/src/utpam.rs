@@ -15,25 +15,25 @@ use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-pub const PAM_CALLED_FROM_MODULE: i32 = 1;
-pub const PAM_CALLED_FROM_APP: i32 = 2;
+pub const PAM_CALLED_FROM_MODULE: u8 = 1;
+pub const PAM_CALLED_FROM_APP: u8 = 2;
 
-pub const PAM_MT_DYNAMIC_MOD: i32 = 0;
-pub const PAM_MT_STATIC_MOD: i32 = 1;
-pub const PAM_MT_FAULTY_MOD: i32 = 2;
+pub const PAM_MT_DYNAMIC_MOD: u8 = 0;
+pub const PAM_MT_STATIC_MOD: u8 = 1;
+pub const PAM_MT_FAULTY_MOD: u8 = 2;
 
-pub const PAM_NOT_STACKED: i32 = 0;
-pub const PAM_AUTHENTICATE: i32 = 1;
-pub const PAM_SETCRED: i32 = 2;
-pub const PAM_ACCOUNT: i32 = 3;
-pub const PAM_OPEN_SESSION: i32 = 4;
-pub const PAM_CLOSE_SESSION: i32 = 5;
-pub const PAM_CHAUTHTOK: i32 = 6;
+pub const PAM_NOT_STACKED: u8 = 0;
+pub const PAM_AUTHENTICATE: u8 = 1;
+pub const PAM_SETCRED: u8 = 2;
+pub const PAM_ACCOUNT: u8 = 3;
+pub const PAM_OPEN_SESSION: u8 = 4;
+pub const PAM_CLOSE_SESSION: u8 = 5;
+pub const PAM_CHAUTHTOK: u8 = 6;
 
-pub const PAM_HT_MODULE: i32 = 0;
-pub const PAM_HT_MUST_FAIL: i32 = 1;
-pub const PAM_HT_SUBSTACK: i32 = 2;
-pub const PAM_HT_SILENT_MODULE: i32 = 3;
+pub const PAM_HT_MODULE: u8 = 0;
+pub const PAM_HT_MUST_FAIL: u8 = 1;
+pub const PAM_HT_SUBSTACK: u8 = 2;
+pub const PAM_HT_SILENT_MODULE: u8 = 3;
 
 pub const PAM_ACTION_IGNORE: i32 = 0;
 pub const PAM_ACTION_OK: i32 = -1;
@@ -45,9 +45,9 @@ pub const PAM_ACTION_UNDEF: i32 = -6;
 
 pub const PAM_SUBSTACK_MAX_LEVEL: i32 = 16;
 
-pub const _PAM_INVALID_RETVAL: i32 = -1;
+pub const _PAM_INVALID_RETVAL: i8 = -1;
 
-pub const PAM_ENV_CHUNK: i32 = 10;
+pub const PAM_ENV_CHUNK: u8 = 10;
 
 pub const UTPAM_CONFIG: &str = "/etc/utpam.conf";
 pub const UTPAM_CONFIG_D: &str = "/etc/utpam.d";
@@ -114,7 +114,7 @@ macro_rules! UTPAM_TO_APP {
 pub struct UtpamHandle {
     pub(super) authtok: String,
     pub(super) pam_conversation: Rc<UtpamConv>,
-    pub(super) caller_is: i32,
+    pub(super) caller_is: u8,
     pub(super) oldauthtok: String,
     pub(super) prompt: Option<String>,
     pub(super) service_name: String,
@@ -260,7 +260,7 @@ pub struct Service {
 #[derive(Debug)]
 pub struct LoadedModule {
     pub(super) name: String,
-    pub(super) moule_type: i32,
+    pub(super) moule_type: u8,
     pub(super) dl_handle: Option<Library>,
 }
 
@@ -280,14 +280,14 @@ pub type CallSpi = fn(
     flags: u32,
     argc: Option<i32>,
     argv: Option<Vec<String>>,
-) -> i32;
+) -> u8;
 
 #[derive(Debug, Clone)]
 pub struct Handler {
-    pub(super) handler_type: i32,
+    pub(super) handler_type: u8,
     pub(super) func: Option<CallSpi>,
     pub(super) actions: Vec<i32>,
-    pub(super) cached_retval: Rc<RefCell<i32>>, //用于实现内部可变性和共享所有权
+    pub(super) cached_retval: Rc<RefCell<i8>>, //用于实现内部可变性和共享所有权
     pub(super) argc: i32,
     pub(super) argv: Vec<String>,
     pub(super) next: Option<Box<Handler>>,
@@ -298,11 +298,11 @@ pub struct Handler {
 
 impl Handler {
     //设置cached_retval 字段的值
-    pub fn set_cached_retval(&self, value: i32) {
+    pub fn set_cached_retval(&self, value: i8) {
         *self.cached_retval.borrow_mut() = value;
     }
     //获取cached_retval 字段的值
-    pub fn get_cached_retval(&self) -> i32 {
+    pub fn get_cached_retval(&self) -> i8 {
         *self.cached_retval.borrow()
     }
 }
@@ -310,17 +310,17 @@ impl Handler {
 #[derive(Debug, Clone, Copy)]
 pub struct UtpamSubstackState {
     pub(super) impression: i32,
-    pub(super) status: i32,
+    pub(super) status: u8,
 }
 
 #[derive(Debug, Clone)]
 pub struct UtpamFormerState {
-    pub(super) choice: i32,
+    pub(super) choice: u8,
     pub(super) depth: i32,
     pub(super) impression: i32,
-    pub(super) status: i32,
+    pub(super) status: u8,
     pub(super) substates: Vec<UtpamSubstackState>,
-    pub(super) fail_user: i32,
+    pub(super) fail_user: u8,
     pub(super) want_user: UtpamBoolean,
     pub(super) prompt: Option<String>,
     pub(super) update: UtpamBoolean,

@@ -9,7 +9,7 @@ use crate::utpam_dispatch::utpam_dispatch;
 use crate::{IF_NO_UTPAMH, UTPAM_FROM_MODULE};
 
 //打开会话
-pub fn utpam_open_session(utpamh: &mut Option<Box<UtpamHandle>>, flags: u32) -> i32 {
+pub fn utpam_open_session(utpamh: &mut Option<Box<UtpamHandle>>, flags: u32) -> u8 {
     ////检查utpamh是否为空
     let utpamh = IF_NO_UTPAMH!(utpamh, PAM_SYSTEM_ERR);
 
@@ -23,7 +23,7 @@ pub fn utpam_open_session(utpamh: &mut Option<Box<UtpamHandle>>, flags: u32) -> 
 }
 
 //注销或结束会话
-pub fn utpam_close_session(utpamh: &mut Option<Box<UtpamHandle>>, flags: u32) -> i32 {
+pub fn utpam_close_session(utpamh: &mut Option<Box<UtpamHandle>>, flags: u32) -> u8 {
     ////检查utpamh是否为空
     let utpamh = IF_NO_UTPAMH!(utpamh, PAM_SYSTEM_ERR);
 

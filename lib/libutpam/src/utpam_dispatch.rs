@@ -21,7 +21,7 @@ const PAM_NEGATIVE: i32 = -1;
 const PAM_PLEASE_FREEZE: i32 = 0;
 const PAM_MAY_BE_FROZEN: i32 = 1;
 
-const PAM_MUST_FAIL_CODE: i32 = PAM_PERM_DENIED;
+const PAM_MUST_FAIL_CODE: u8 = PAM_PERM_DENIED;
 
 /// 遍历和调度配置的模块堆栈
 fn utpam_dispatch_aux(
@@ -30,7 +30,7 @@ fn utpam_dispatch_aux(
     handlers: &mut Option<Box<Handler>>,
     resumed: UtpamBoolean,
     use_cached_chain: i32,
-) -> i32 {
+) -> u8 {
     let mut depth = 0;
     let mut impression = PAM_UNDEF;
     let mut status = PAM_MUST_FAIL_CODE;
@@ -133,17 +133,17 @@ fn utpam_dispatch_aux(
 
                 if use_cached_chain == PAM_MAY_BE_FROZEN {
                     //h.set_cached_retval(retval);
-                    cached_retval = retval;
+                    cached_retval = retval as i8;
                 } else {
                     println!("BUG in libpam - chain is required to be frozen but isn't");
                 }
             }
         } else {
-            h.set_cached_retval(retval);
-            cached_retval = retval;
+            h.set_cached_retval(retval as i8);
+            cached_retval = retval as i8;
         }
 
-        if cached_retval < PAM_SUCCESS || cached_retval >= PAM_RETURN_VALUES as i32 {
+        if cached_retval < PAM_SUCCESS as i8 || cached_retval >= PAM_RETURN_VALUES as i8 {
             retval = PAM_MUST_FAIL_CODE;
             action = PAM_ACTION_BAD;
         } else {
@@ -162,7 +162,7 @@ fn utpam_dispatch_aux(
             PAM_ACTION_OK | PAM_ACTION_DONE => {
                 if impression == PAM_UNDEF || (impression == PAM_POSITIVE && status == PAM_SUCCESS)
                 {
-                    if retval != PAM_IGNORE || cached_retval == retval {
+                    if retval != PAM_IGNORE || cached_retval == retval as i8 {
                         impression = PAM_POSITIVE;
                         status = retval;
                     }
@@ -196,7 +196,7 @@ fn utpam_dispatch_aux(
                         if impression == PAM_UNDEF
                             || (impression == PAM_POSITIVE && status == PAM_SUCCESS)
                         {
-                            if retval != PAM_IGNORE || cached_retval == retval {
+                            if retval != PAM_IGNORE || cached_retval == retval as i8 {
                                 if impression == PAM_UNDEF && retval == PAM_SUCCESS {
                                     h.grantor = 1;
                                 }
@@ -235,7 +235,7 @@ fn utpam_clear_grantors(handler: &mut Option<Box<Handler>>) {
 }
 
 /// 将模块调度请求转换为指向将实际运行的模块堆栈的指针
-pub fn utpam_dispatch(utpamh: &mut Box<UtpamHandle>, flags: u32, choice: i32) -> i32 {
+pub fn utpam_dispatch(utpamh: &mut Box<UtpamHandle>, flags: u32, choice: u8) -> u8 {
     let mut retval = PAM_SYSTEM_ERR;
     let mut use_cached_chain;
     let mut h;

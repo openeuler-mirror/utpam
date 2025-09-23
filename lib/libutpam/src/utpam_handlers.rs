@@ -5,14 +5,18 @@
  */
 #![allow(clippy::too_many_arguments)]
 
-use crate::common::{PAM_ABORT, PAM_IGNORE, PAM_NEW_AUTHTOK_REQD, PAM_RETURN_VALUES, PAM_SUCCESS};
+use crate::common::*;
+use crate::pam_syslog;
 use crate::utpam::*;
+use crate::utpam_strerror::pam_strerror;
+use crate::utpam_syslog::*;
 
 use crate::utpam_dynamic::{utpam_dlopen, utpam_dlsym};
 use crate::utpam_misc::{
     utpam_mkargv, utpam_parse_control, utpam_set_default_control, utpam_tokenize,
 };
 use std::env::consts::ARCH;
+use std::path::Path;
 use utpam_internal::utpam_line::{utpam_line_assemble, UtpamLineBuffer};
 
 use std::cell::RefCell;
@@ -32,11 +36,15 @@ const DEFAULT_MODULE_PATH: &str = "/lib64/security";
 
 //初始化UtpamHandle结构体字段
 pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> i32 {
-    let mut retval = 0;
+    let mut retval: i32;
 
     //如果所有内容都已加载，则立即返回
     if utpamh.handlers.handlers_loaded != 0 {
         return PAM_SUCCESS;
+    }
+
+    if utpamh.service_name.is_empty() {
+        return PAM_BAD_ITEM;
     }
 
     //PAM_LOCKING-检查子系统是否锁定：条件编译（最后处理）
@@ -67,7 +75,19 @@ pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> i32 {
             );
 
             if retval != PAM_SUCCESS {
-                println!("pam_init_handlers: error reading: {:?}", path);
+                let path = if let Some(s) = &path {
+                    s.to_str().unwrap()
+                } else {
+                    "unknown file"
+                };
+                pam_syslog!(
+                    &utpamh,
+                    LOG_ERR,
+                    "utpam_init_handlers: error reading {}",
+                    path
+                );
+                let err = pam_strerror(utpamh, LOG_ERR as i64);
+                pam_syslog!(&utpamh, LOG_ERR, "utpam_init_handlers [{}]", err);
             } else {
                 read_something = 1;
             }
@@ -97,13 +117,27 @@ pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> i32 {
                     false,
                 );
                 if retval != PAM_SUCCESS {
-                    println!("utpam_init_handlers: error reading: {:?}", path);
+                    let path = if let Some(s) = &path {
+                        s.to_str().unwrap()
+                    } else {
+                        "unknown file"
+                    };
+                    pam_syslog!(
+                        &utpamh,
+                        LOG_ERR,
+                        "utpam_init_handlers: error reading {}",
+                        path
+                    );
+                    let err = pam_strerror(utpamh, LOG_ERR as i64);
+                    pam_syslog!(&utpamh, LOG_ERR, "utpam_init_handlers: [{}]", err);
                 } else {
                     read_something = 1;
                 }
             } else {
-                println!(
-                    "unable to open configuration for: {:?}",
+                pam_syslog!(
+                    &utpamh,
+                    LOG_ERR,
+                    "utpam_init_handlers: no default config {}",
                     UTPAM_DEFAULT_SERVICE
                 );
             }
@@ -111,10 +145,26 @@ pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> i32 {
                 retval = PAM_ABORT;
             }
         }
+    } else {
+        let path = Path::new(UTPAM_CONFIG);
+        match File::open(path) {
+            Ok(ref mut file) => {
+                retval = utpam_parse_config_file(utpamh, file, None, PAM_T_ANY, 0, 0, false);
+            }
+            Err(_) => {
+                pam_syslog!(
+                    &utpamh,
+                    LOG_ERR,
+                    "utpam_init_handlers: error reading {}",
+                    UTPAM_CONFIG
+                );
+                return PAM_ABORT;
+            }
+        };
     }
 
     if retval != PAM_SUCCESS {
-        println!("error reading PAM configuration file");
+        pam_syslog!(&utpamh, LOG_ERR, "error reading PAM configuration file",);
         return PAM_ABORT;
     }
 
@@ -153,8 +203,8 @@ fn utpam_open_config_file(
                 *file = Some(f);
                 return PAM_SUCCESS;
             }
-            Err(_) => {
-                println!("打开文件失败");
+            Err(err) => {
+                pam_syslog!(&utpamh, LOG_ERR, "{}", err);
                 return PAM_ABORT;
             }
         }
@@ -172,13 +222,13 @@ fn utpam_open_config_file(
                     *file = Some(f);
                     return PAM_SUCCESS;
                 }
-                Err(_) => {
-                    println!("打开文件失败");
+                Err(err) => {
+                    pam_syslog!(&utpamh, LOG_ERR, "{}", err);
                     return PAM_ABORT;
                 }
             }
         } else {
-            println!("找不到文件或目录: {:?}", path_buf);
+            println!("File or directory not found: {:?}", path_buf);
         }
     }
 
@@ -312,7 +362,13 @@ fn utpam_parse_config_file(
                     } else if tok.eq_ignore_ascii_case("password") {
                         module_type = PAM_T_PASS;
                     } else {
-                        //无效的类型，日记记录
+                        pam_syslog!(
+                            &utpamh,
+                            LOG_ERR,
+                            "({}) illegal module type: {}",
+                            this_service,
+                            tok
+                        );
                         module_type = if requested_module_type != PAM_T_ANY {
                             requested_module_type
                         } else {
@@ -323,7 +379,7 @@ fn utpam_parse_config_file(
                     }
                 }
                 None => {
-                    //模块类型不存在，日记记录
+                    pam_syslog!(&utpamh, LOG_ERR, "({}) empty module type", this_service);
                     module_type = if requested_module_type != PAM_T_ANY {
                         requested_module_type
                     } else {
@@ -380,14 +436,19 @@ fn utpam_parse_config_file(
                             substack = 1;
                         }
                         _ => {
-                            //无效的控制标志，日志记录
+                            println!("will need to parse {}", tok);
                             utpam_parse_control(&mut actions, &tok);
                             utpam_set_default_control(&mut actions, PAM_ACTION_BAD);
                         }
                     }
                 }
                 None => {
-                    //日志记录
+                    pam_syslog!(
+                        &utpamh,
+                        LOG_ERR,
+                        "({}) no control flag supplied",
+                        this_service
+                    );
                     utpam_set_default_control(&mut actions, PAM_ACTION_BAD);
                     handler_type = PAM_HT_MUST_FAIL;
                 }
@@ -410,14 +471,14 @@ fn utpam_parse_config_file(
                                 &argv,
                             );
                             if res != PAM_SUCCESS {
-                                println!("failed to load module - aborting");
+                                pam_syslog!(&utpamh, LOG_ERR, "error adding substack {}", tok);
                                 return PAM_ABORT;
                             }
                         }
                         if utpam_load_conf_file(
                             utpamh,
                             Some(tok.clone()),
-                            Some(this_service),
+                            Some(this_service.clone()),
                             module_type,
                             include_level + 1,
                             stack_level + substack,
@@ -437,8 +498,12 @@ fn utpam_parse_config_file(
                     }
                 }
                 None => {
-                    //没有给出模块名称
-                    // 日志记录
+                    pam_syslog!(
+                        &utpamh,
+                        LOG_ERR,
+                        "({}) no module name supplied",
+                        this_service
+                    );
                     mod_path = None;
                     handler_type = PAM_HT_MUST_FAIL;
                 }
@@ -446,6 +511,12 @@ fn utpam_parse_config_file(
 
             if let Some(buf) = buf {
                 if utpam_mkargv(buf, &mut argv, &mut argc) == 0 {
+                    pam_syslog!(
+                        &utpamh,
+                        LOG_ERR,
+                        "({}) argument vector allocation failed",
+                        this_service
+                    );
                     mod_path = None;
                     handler_type = PAM_HT_MUST_FAIL;
                 }
@@ -463,7 +534,11 @@ fn utpam_parse_config_file(
                 &argv,
             );
             if res != PAM_SUCCESS {
-                println!("error loading: {:?}", mod_path);
+                let mod_path = match mod_path {
+                    Some(path) => path,
+                    None => "unknown file".to_string(),
+                };
+                pam_syslog!(&utpamh, LOG_ERR, "error loading {}", mod_path);
                 return PAM_ABORT;
             }
         }
@@ -549,6 +624,9 @@ fn utpam_load_module(
                                 newmod.dl_handle = Some(handle);
                             }
                             Err(e) => {
+                                newmod.dl_handle = None;
+                                newmod.moule_type = PAM_MT_FAULTY_MOD;
+
                                 if handler_type != PAM_HT_SILENT_MODULE {
                                     println!("{}", e);
                                 }
@@ -610,7 +688,7 @@ fn utpam_add_handler(
                 handler_type,
             );
         } else {
-            println!("cannot malloc full mod path");
+            pam_syslog!(&utpamh, LOG_ERR, "cannot malloc full mod path",);
             return PAM_ABORT;
         }
     }
@@ -651,7 +729,13 @@ fn utpam_add_handler(
     };
 
     if mod_type != PAM_MT_DYNAMIC_MOD && mod_type != PAM_MT_FAULTY_MOD {
-        println!("internal error: module library type not known");
+        pam_syslog!(
+            &utpamh,
+            LOG_ERR,
+            "internal error: module library type not known: {};{}",
+            sym,
+            mod_type
+        );
         return PAM_ABORT;
     }
 
@@ -685,8 +769,8 @@ fn utpam_add_handler(
             // 将新 Handler 插入链表末尾
             append_handler(handler_p, handler);
         }
-        Err(e) => {
-            println!("{}", e);
+        Err(_) => {
+            pam_syslog!(&utpamh, LOG_ERR, "unable to resolve symbol: {}", sym);
             return PAM_ABORT;
         }
     }
@@ -716,8 +800,8 @@ fn utpam_add_handler(
                     append_handler(handler_p2, handler);
                 }
             }
-            Err(e) => {
-                println!("{}", e);
+            Err(_) => {
+                pam_syslog!(&utpamh, LOG_ERR, "unable to resolve symbol: {}", sym2);
                 return PAM_ABORT;
             }
         }

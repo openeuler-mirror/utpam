@@ -3,15 +3,14 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
-use crate::common::{
-    PAM_INCOMPLETE, PAM_PRELIM_CHECK, PAM_SUCCESS, PAM_SYSTEM_ERR, PAM_UPDATE_AUTHTOK,
-};
+use crate::common::*;
 use crate::utpam::{
     UtpamBoolean, UtpamHandle, PAM_CALLED_FROM_MODULE, PAM_CHAUTHTOK, PAM_NOT_STACKED,
 };
 use crate::utpam_dispatch::utpam_dispatch;
 use crate::utpam_misc::utpam_sanitize;
-use crate::{IF_NO_UTPAMH, UTPAM_FROM_MODULE};
+use crate::utpam_syslog::*;
+use crate::{pam_syslog, IF_NO_UTPAMH, UTPAM_FROM_MODULE};
 
 //管理密码或认证令牌的变更
 pub fn utpam_chauthtok(utpamh: &mut Option<Box<UtpamHandle>>, flags: u32) -> i32 {
@@ -24,6 +23,11 @@ pub fn utpam_chauthtok(utpamh: &mut Option<Box<UtpamHandle>>, flags: u32) -> i32
     }
 
     if flags & (PAM_PRELIM_CHECK | PAM_UPDATE_AUTHTOK) != 0 {
+        pam_syslog!(
+            &utpamh,
+            LOG_ERR,
+            "AM_PRELIM_CHECK or PAM_UPDATE_AUTHTOK set by application",
+        );
         println!("PAM_PRELIM_CHECK or PAM_UPDATE_AUTHTOK set by application");
         return PAM_SYSTEM_ERR;
     }

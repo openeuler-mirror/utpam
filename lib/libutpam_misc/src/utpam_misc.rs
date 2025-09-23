@@ -22,16 +22,11 @@
 use std::any::Any;
 use std::io;
 use std::io::Write;
+use std::rc::Rc;
+use utpam::common::*;
 use utpam::common::{UtpamMessage, UtpamResponse};
-
-use utpam::common::PAM_CONV_ERR;
-use utpam::common::PAM_SUCCESS;
-
-pub const PAM_PROMPT_ECHO_ON: isize = 2;
-pub const PAM_PROMPT_ECHO_OFF: isize = 1;
-pub const PAM_BINARY_PROMPT: isize = 7;
-pub const PAM_ERROR_MSG: isize = 3;
-pub const PAM_TEXT_INFO: isize = 4;
+//use utpam::common::PAM_CONV_ERR;
+//use utpam::common::PAM_SUCCESS;
 
 struct MyStruct {
     length: u32,
@@ -51,7 +46,7 @@ pub fn misc_conv(
     num_msg: isize,
     msgm: &[UtpamMessage],
     response: &mut Option<Vec<UtpamResponse>>,
-    appdata_ptr: Option<Box<dyn Any>>,
+    appdata_ptr: Option<Rc<dyn Any>>,
 ) -> isize {
     let mut count = 0_usize;
 

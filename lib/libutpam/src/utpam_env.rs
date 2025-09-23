@@ -3,10 +3,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
-use crate::common::{PAM_ABORT, PAM_BAD_ITEM, PAM_PERM_DENIED, PAM_SUCCESS};
+use crate::common::*;
 use crate::utpam::{UtpamHandle, PAM_ENV_CHUNK};
 use crate::utpam_misc::utpam_strdup;
-use crate::IF_NO_UTPAMH;
+use crate::utpam_syslog::*;
+use crate::{pam_syslog, IF_NO_UTPAMH};
 
 #[derive(Debug)]
 pub struct UtpamEnviron {
@@ -39,7 +40,7 @@ pub fn utpam_drop_env(utpamh: &mut Box<UtpamHandle>) {
             env.requested = 0;
             env.list.clear(); //清空 Vec 本身
         }
-        None => println!("no environment present in pamh?"),
+        None => println!("no environment present in utpamh?"),
     }
 }
 
@@ -65,18 +66,19 @@ pub fn utpam_putenv(utpamh: &mut Option<Box<UtpamHandle>>, name_value: &str) -> 
     let utpamh = IF_NO_UTPAMH!(utpamh, PAM_ABORT);
 
     if name_value.is_empty() {
-        println!("pam_putenv: no variable indicated");
+        pam_syslog!(&utpamh, LOG_ERR, "utpam_putenv: no variable indicated",);
         return PAM_PERM_DENIED;
     }
 
     let l2eq = name_value.find('=').unwrap_or(name_value.len());
     if l2eq == 0 {
-        println!("pam_putenv: bad variable");
+        pam_syslog!(&utpamh, LOG_ERR, "utpam_putenv: bad variable",);
         return PAM_BAD_ITEM;
     }
     match utpamh.env {
         Some(ref mut env) => {
             if env.list.is_empty() {
+                pam_syslog!(&utpamh, LOG_ERR, "utpam_putenv: no env-list found",);
                 return PAM_ABORT;
             }
             let item = utpam_search_env(env, &name_value[..l2eq], l2eq);
@@ -93,7 +95,12 @@ pub fn utpam_putenv(utpamh: &mut Option<Box<UtpamHandle>>, name_value: &str) -> 
             } else {
                 // deleting
                 if item == -1 {
-                    println!("pam_putenv: delete non-existent entry");
+                    pam_syslog!(
+                        &utpamh,
+                        LOG_ERR,
+                        "utpam_putenv: delete non-existent entry; {}",
+                        name_value
+                    );
                     return PAM_BAD_ITEM;
                 }
 
@@ -102,7 +109,10 @@ pub fn utpam_putenv(utpamh: &mut Option<Box<UtpamHandle>>, name_value: &str) -> 
             }
             PAM_SUCCESS
         }
-        None => PAM_ABORT,
+        None => {
+            pam_syslog!(&utpamh, LOG_ERR, "utpam_putenv: no env found",);
+            PAM_ABORT
+        }
     }
 }
 
@@ -112,14 +122,18 @@ pub fn utpam_getenv(utpamh: &mut Option<Box<UtpamHandle>>, name: &str) -> Option
         None => return None,
     };
     if name.is_empty() {
-        println!("pam_getenv: no variable indicated");
+        pam_syslog!(&utpamh, LOG_ERR, "utpam_getenv: no variable indicated",);
         return None;
     }
     let env = match &utpamh.env {
         Some(env) => env,
-        None => return None,
+        None => {
+            pam_syslog!(&utpamh, LOG_ERR, "utpam_getenv: no env found",);
+            return None;
+        }
     };
     if env.list.is_empty() {
+        pam_syslog!(&utpamh, LOG_ERR, "utpam_getenv: no env-list found",);
         return None;
     }
 
@@ -175,19 +189,28 @@ pub fn utpam_getenvlist(utpamh: &mut Option<Box<UtpamHandle>>) -> Option<Vec<Str
 
     let env = match &utpamh.env {
         Some(env) => env,
-        None => return None,
+        None => {
+            pam_syslog!(&utpamh, LOG_ERR, "utpam_getenvlist: no env found",);
+            return None;
+        }
     };
     if env.list.is_empty() {
+        pam_syslog!(&utpamh, LOG_ERR, "utpam_getenvlist: no env-list found",);
         return None;
     }
 
     if env.requested as i32 > env.entries {
+        pam_syslog!(
+            &utpamh,
+            LOG_ERR,
+            "utpam_getenvlist: environment corruptiond",
+        );
         return None;
     }
 
     for i in (0..env.requested).rev() {
         if env.list[i].is_empty() {
-            println!("pam_getenvlist: environment broken");
+            pam_syslog!(&utpamh, LOG_ERR, "utpam_getenvlist: environment broken",);
             return None;
         }
     }

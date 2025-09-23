@@ -10,8 +10,8 @@ use crate::utpam::*;
 use crate::utpam_handlers::utpam_init_handlers;
 use crate::utpam_item::utpam_get_item;
 
-use crate::{PAM_ACTION_IS_JUMP, UTPAM_FROM_MODULE, UTPAM_TO_APP, UTPAM_TO_MODULE};
-
+use crate::utpam_syslog::*;
+use crate::{pam_syslog, PAM_ACTION_IS_JUMP, UTPAM_FROM_MODULE, UTPAM_TO_APP, UTPAM_TO_MODULE};
 use std::any::Any;
 
 const PAM_UNDEF: i32 = 0;
@@ -50,9 +50,9 @@ fn utpam_dispatch_aux(
 
         // 因为service_name是String, 将 Box<dyn Any> 转换为 String 类型的引用
         if let Some(name) = service.downcast_ref::<String>() {
-            println!("no modules loaded for '{}' service", name);
+            pam_syslog!(&utpamh, LOG_ERR, "no modules loaded for '{}' service", name);
         } else {
-            println!("no modules loaded for <unknown> service");
+            pam_syslog!(&utpamh, LOG_ERR, "no modules loaded for <unknown> service",);
         }
         return PAM_MUST_FAIL_CODE;
     }
@@ -208,7 +208,7 @@ fn utpam_dispatch_aux(
                 }
 
                 if action == 1 {
-                    println!("bad jump in stack");
+                    pam_syslog!(&utpamh, LOG_ERR, "bad jump in stack",);
                     impression = PAM_NEGATIVE;
                     status = PAM_MUST_FAIL_CODE;
                 }
@@ -247,7 +247,7 @@ pub fn utpam_dispatch(utpamh: &mut Box<UtpamHandle>, flags: u32, choice: i32) ->
 
     //检查模块是否加载
     if utpam_init_handlers(utpamh) != PAM_SUCCESS {
-        println!("unable to dispatch function");
+        pam_syslog!(&utpamh, LOG_ERR, "unable to dispatch function",);
         return retval;
     }
 
@@ -277,6 +277,7 @@ pub fn utpam_dispatch(utpamh: &mut Box<UtpamHandle>, flags: u32, choice: i32) ->
             h = &mut utpamh.handlers.conf.chauthtok;
         }
         _ => {
+            pam_syslog!(&utpamh, LOG_ERR, "undefined fn choice; {}", choice);
             return PAM_ABORT;
         }
     };
@@ -312,6 +313,14 @@ pub fn utpam_dispatch(utpamh: &mut Box<UtpamHandle>, flags: u32, choice: i32) ->
      */
     if utpamh.former.choice != PAM_NOT_STACKED {
         if utpamh.former.choice != choice {
+            let former_choice = utpamh.former.choice;
+            pam_syslog!(
+                &utpamh,
+                LOG_ERR,
+                "application failed to re-exec stack [{}:{}]",
+                former_choice,
+                choice
+            );
             return PAM_ABORT;
         }
         resumed = UtpamBoolean::UtpamTrue;

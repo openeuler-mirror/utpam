@@ -25,8 +25,69 @@ use std::io::Write;
 use std::rc::Rc;
 use utpam::common::*;
 use utpam::common::{UtpamMessage, UtpamResponse};
-//use utpam::common::PAM_CONV_ERR;
-//use utpam::common::PAM_SUCCESS;
+
+//fn set_alarm
+use crate::utpam_misc::signal::SigSet;
+use nix::sys::signal::{self, SaFlags, SigAction, SigHandler, Signal};
+use nix::unistd::alarm;
+use std::time::Duration;
+
+#[no_mangle]
+extern "C" fn time_is_up(_: i32) {
+    unsafe {
+        expired = 1;
+    }
+}
+
+//用于(模拟)还原信号程序的注册函数，空函数；
+#[no_mangle]
+extern "C" fn doing_nothing(_: i32) {}
+
+//函数大致功能：设置定时器，时间到达时出发相应信号处理函数；
+//函数签名处少了一个参数(原始信号处理结构的指针)，由于rust里面的signal::sigaction后不支持第三个参数，
+//所以无法传入原始指针结构体,此函数也仅被当前文件的read_string函数调用；
+//目前实现方案为在以下函数中模拟一个(原始)信号处理程序(c端的struct sigaction也为初始状态)；
+//参数delay为延迟时间(s),用于设置定时器的定时时间；返回值1均为失败(信号及定时器失败)；
+#[no_mangle]
+pub fn set_alarm(delay: i32) -> i32 {
+    // 创建一个新的信号处理程序
+    let new_action = SigAction::new(
+        SigHandler::Handler(time_is_up),
+        SaFlags::SA_RESTART,
+        SigSet::empty(),
+    );
+    //创建一个模拟(旧的)信号处理程序，用于恢复至初始化信号状态，
+    let virt_old_action = SigAction::new(
+        SigHandler::Handler(doing_nothing),
+        SaFlags::SA_RESTART,
+        SigSet::empty(),
+    );
+
+    // 尝试设置新的信号处理方式，接收到SIGALRM(定时器到时)信号，即执行new_action中内容，
+    // 主要看Handler后的信号注册函数(time_is_up);
+    unsafe {
+        match signal::sigaction(signal::Signal::SIGALRM, &new_action) {
+            Ok(_) => (),
+            Err(_) => return 1, // 设置信号失败
+        }
+    }
+
+    // 尝试设置定时器,alarm::set()后的None表示没有设定定时器，Some(secs) secs>0表示定时器剩余时间；
+    // 以下match表示如果返回正数，则说明定时器已经设置，那么将信号程序还原，且返回1；
+    match alarm::set(delay as u32) {
+        None => (),
+        Some(secs) => {
+            if secs > 0 {
+                unsafe {
+                    signal::sigaction(signal::Signal::SIGALRM, &virt_old_action);
+                }
+                return 1;
+            }
+        }
+    }
+    0 // 所有操作成功
+}
+//signal
 
 struct MyStruct {
     length: u32,
@@ -43,20 +104,20 @@ static pam_binary_handler_fn: Option<pam_binary_handler_fn_t> = None;
 //函数参数和返回值不变即可
 #[no_mangle]
 pub fn misc_conv(
-    num_msg: isize,
+    num_msg: usize,
     msgm: &[UtpamMessage],
     response: &mut Option<Vec<UtpamResponse>>,
     appdata_ptr: Option<Rc<dyn Any>>,
-) -> isize {
+) -> u8 {
     let mut count = 0_usize;
 
     if num_msg <= 0 {
-        return PAM_CONV_ERR as isize;
+        return PAM_CONV_ERR;
     }
 
     println!("allocating empty response structure array."); //debug
 
-    let mut reply: Vec<UtpamResponse> = Vec::with_capacity(num_msg as usize);
+    let mut reply: Vec<UtpamResponse> = Vec::with_capacity(num_msg);
     for _ in 0..num_msg {
         reply.push(UtpamResponse {
             resp: Vec::new(),
@@ -68,7 +129,7 @@ pub fn misc_conv(
 
     'failed_conversation: loop {
         loop {
-            if count >= num_msg as usize {
+            if count >= num_msg {
                 break;
             }
             //let mut string: Option<String> = None; remove
@@ -148,7 +209,7 @@ pub fn misc_conv(
 
         *response = Some(reply);
         //reply = null;//离开作用域自动释放；
-        return PAM_SUCCESS as isize;
+        return PAM_SUCCESS;
     } //end of goto,failed_conversation
 
     println!("the conversation failed"); //debug
@@ -156,7 +217,7 @@ pub fn misc_conv(
     if !reply.is_empty() {
         count = 0;
         loop {
-            if count >= num_msg as usize {
+            if count >= num_msg {
                 break;
             }
             if reply[count].resp.is_empty() {
@@ -185,7 +246,7 @@ pub fn misc_conv(
             count += 1;
         }
     }
-    PAM_CONV_ERR as isize
+    PAM_CONV_ERR
 }
 
 //utget_delay函数被用于read_string函数，主要作用为获取时间差值，来计算延迟

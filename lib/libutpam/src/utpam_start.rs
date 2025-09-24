@@ -19,16 +19,16 @@ use std::rc::Rc;
 pub fn utpam_start(
     service_name: String,
     user: Option<String>,
-    utpam_conversation: UtpamConv,
+    utpam_conversation: Option<UtpamConv>,
     mut utpamh: &mut Option<Box<UtpamHandle>>,
 ) -> u8 {
     utpam_start_internal(service_name, user, utpam_conversation, None, utpamh)
 }
 
-pub fn utpam_stat_confdir(
+pub fn utpam_start_confdir(
     service_name: String,
     user: Option<String>,
-    utpam_conversation: UtpamConv,
+    utpam_conversation: Option<UtpamConv>,
     confdir: PathBuf,
     mut utpamh: &mut Option<Box<UtpamHandle>>,
 ) -> u8 {
@@ -44,7 +44,7 @@ pub fn utpam_stat_confdir(
 fn utpam_start_internal(
     service_name: String,
     user: Option<String>,
-    utpam_conversation: UtpamConv,
+    utpam_conversation: Option<UtpamConv>,
     confdir: Option<PathBuf>,
     mut utpamh: &mut Option<Box<UtpamHandle>>,
 ) -> u8 {
@@ -58,7 +58,13 @@ fn utpam_start_internal(
         Some(path) => path,
         None => PathBuf::default(),
     };
-    let utpam_conversation = Rc::new(utpam_conversation);
+    let utpam_conversation = match utpam_conversation {
+        Some(conv) => Rc::new(conv),
+        None => {
+            return PAM_ABORT;
+        }
+    };
+
     let mut pamh = Box::new(UtpamHandle::new(
         service_name,
         utpam_conversation,

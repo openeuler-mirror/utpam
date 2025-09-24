@@ -65,18 +65,6 @@ impl UtpamFailDelay {
             delay as u64
         }
     }
-    ///记录和更新最大延迟
-    pub fn utpam_set_delay(&mut self, usec: u64) {
-        if !self.set.to_bool() {
-            self.set = UtpamBoolean::UtpamTrue;
-            self.delay = 0;
-        }
-
-        //比较传入的 usec 和当前的最大延迟时间 largest
-        if self.delay < usec {
-            self.delay = usec;
-        }
-    }
 }
 
 impl Default for UtpamFailDelay {
@@ -121,6 +109,21 @@ pub fn utpam_await_timer(utpamh: &mut Box<UtpamHandle>, status: u8) {
         }
     }
     fail_delay.utpam_reset_timer();
+}
+
+///记录和更新最大延迟
+pub fn utpam_fail_delay(utpamh: &mut Box<UtpamHandle>, usec: u64) -> u8 {
+    let fail_delay = &mut utpamh.fail_delay;
+    if !fail_delay.set.to_bool() {
+        fail_delay.set = UtpamBoolean::UtpamTrue;
+        fail_delay.delay = 0;
+    }
+
+    //比较传入的 usec 和当前的最大延迟时间 largest
+    if fail_delay.delay < usec {
+        fail_delay.delay = usec;
+    }
+    PAM_SUCCESS
 }
 
 #[cfg(test)]

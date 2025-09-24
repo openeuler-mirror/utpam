@@ -261,19 +261,18 @@ pub fn utpam_get_user(
 
     let mut msg = UtpamMessage {
         msg_style: 0,
-        msg: vec![],
+        msg: String::default(),
     };
     msg.msg_style = PAM_PROMPT_ECHO_ON;
-    msg.msg = vec![use_prompt.to_string()];
+    msg.msg = use_prompt.to_string();
     let resp: &mut Option<Vec<UtpamResponse>> = &mut None;
 
+    let conv = match utpamh.pam_conversation.conv {
+        Some(ref conv) => conv,
+        None => return PAM_CONV_ERR,
+    };
     // 调用conv()函数，只获取1条消息
-    let mut retval = (utpamh.pam_conversation.conv)(
-        1,
-        &[msg],
-        resp,
-        utpamh.pam_conversation.appdata_ptr.clone(),
-    ) as u8;
+    let mut retval = conv(1, &[msg], resp, utpamh.pam_conversation.appdata_ptr.clone());
 
     match retval {
         PAM_SUCCESS | PAM_BUF_ERR | PAM_CONV_AGAIN | PAM_CONV_ERR => {}

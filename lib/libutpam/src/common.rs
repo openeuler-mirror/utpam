@@ -139,15 +139,15 @@ macro_rules! utpam_overwrite_string {
 }
 
 pub type MiscConv = fn(
-    num_msg: isize,
+    num_msg: usize,
     msg: &[UtpamMessage],
     resp: &mut Option<Vec<UtpamResponse>>,
     appdata_ptr: Option<Rc<dyn Any>>,
-) -> isize;
+) -> u8;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct UtpamConv {
-    pub conv: MiscConv,
+    pub conv: Option<MiscConv>,
     pub appdata_ptr: Option<Rc<dyn Any>>,
 }
 pub struct UtpamResponse {
@@ -157,7 +157,7 @@ pub struct UtpamResponse {
 
 pub struct UtpamMessage {
     pub msg_style: u8,
-    pub msg: Vec<String>,
+    pub msg: String,
 }
 
 #[derive(Debug, Clone, PartialEq)]

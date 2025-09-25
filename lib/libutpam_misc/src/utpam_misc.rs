@@ -28,6 +28,39 @@ use std::rc::Rc;
 use utpam::common::*;
 use utpam::common::{UtpamMessage, UtpamResponse};
 
+//delete bin
+//函数是字节序的转换作用
+fn swap_bytes(mut num: u32) -> u32 {
+    num = ((num & 0xFF000000) >> 24)
+        | ((num & 0x00FF0000) >> 8)
+        | ((num & 0x0000FF00) << 8)
+        | ((num & 0x000000FF) << 24);
+    num
+}
+
+//此函数主要是作为函数指针所指的函数，原c的第二个参数为裸指针，此处为引用，因为传入裸指针会导致函数中判断是否空及解构时存在问题，功能是释放二进制数据；
+//原c仅仅一行PAM_BP_RENEW();
+#[no_mangle]
+fn pam_misc_conv_delete_binary(appdata: Option<Box<dyn Any>>, delete_me: &mut pamc_bp_t) {
+    //PAM_BP_RENEW(delete_me,0,0);
+    if let Some(ref mut inner) = *delete_me {
+        let swapped = swap_bytes(inner.length);
+        //memset(delete_me,0,swapped)
+        //返回的字节swapped作为memset第三个参数，但是memset在rust中可以利用rust覆盖；
+        //PAM_BP_FREE(delete_me); rust中不需要释放资源
+    } else {
+        //delete_me.is_none()
+
+        //PAM_BP_ASSERT("programming error, invalid binary prompt pointer");
+        //此宏较简单，仅组包即可；
+        let error_message = b"programming error, invalid binary prompt pointer\0";
+        println!("{}({}): {:?}", file!(), line!(), error_message);
+        std::process::exit(1);
+    }
+}
+
+//end of delete bin
+
 //函数原功能：取消报警且重置信号处理为默认行为；
 //查阅相关资料，关于设置原始信号处理程序可以仍用SigAction::new()方法，
 //只是参数修改为SigDfl即可；

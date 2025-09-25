@@ -9,6 +9,7 @@ use utpam::utpam::*;
 //以下6个是SPI函数，函数名、入参和返回值不能变，这是固定的，内容可以变
 
 //用户认证
+#[no_mangle]
 pub fn utpam_sm_authenticate(
     mut _utpamh: &mut Option<Box<UtpamHandle>>,
     _flags: i32,
@@ -19,6 +20,7 @@ pub fn utpam_sm_authenticate(
 }
 
 //设置凭证
+#[no_mangle]
 pub fn utpam_sm_setcred(
     mut _utpam: &mut Option<Box<UtpamHandle>>,
     _flags: i32,
@@ -29,6 +31,7 @@ pub fn utpam_sm_setcred(
 }
 
 //账户管理
+#[no_mangle]
 pub fn utpam_sm_acct_mgmt(
     mut _utpam: &mut Option<Box<UtpamHandle>>,
     _flags: i32,
@@ -39,6 +42,7 @@ pub fn utpam_sm_acct_mgmt(
 }
 
 //密码管理
+#[no_mangle]
 pub fn utpam_sm_chauthtok(
     mut _utpam: &mut Option<Box<UtpamHandle>>,
     _flags: i32,
@@ -49,6 +53,7 @@ pub fn utpam_sm_chauthtok(
 }
 
 //打开会话
+#[no_mangle]
 pub fn utpam_sm_open_session(
     mut _utpam: &mut Option<Box<UtpamHandle>>,
     _flags: i32,
@@ -59,6 +64,7 @@ pub fn utpam_sm_open_session(
 }
 
 //关闭会话
+#[no_mangle]
 pub fn utpam_sm_close_session(
     mut _utpam: &mut Option<Box<UtpamHandle>>,
     _flags: i32,

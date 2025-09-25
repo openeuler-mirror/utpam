@@ -7,24 +7,19 @@
 
 use crate::pam_private::pam_handle_t;
 use libc::c_int;
+use utpam::common::PAM_SYSTEM_ERR;
 use utpam::utpam::UtpamHandle;
 use utpam::utpam_account::utpam_acct_mgmt;
 
 // C兼容的账号管理函数
 #[no_mangle]
-pub extern "C" fn pam_acct_mgmt(pamh: *mut pam_handle_t, flags: c_int) -> c_int {
-    unsafe {
-        if pamh.is_null() || (*pamh).data.is_null() {
-            return -1; // 返回错误码表示无效的pam_handle_t
-        }
+pub extern "C" fn pam_acct_mgmt(pamh: pam_handle_t, flags: c_int) -> c_int {
+    if pamh.data.is_null() {
+        return PAM_SYSTEM_ERR as c_int;
     }
 
-    let utpamh = unsafe { &mut ((*pamh).data as *mut Option<Box<UtpamHandle>>).as_mut() };
+    let utpamh: &mut Option<Box<UtpamHandle>> =
+        unsafe { &mut *(pamh.data as *mut Option<Box<UtpamHandle>>) };
 
-    if let Some(handle) = utpamh {
-        utpam_acct_mgmt(handle, flags as u32) as c_int
-    } else {
-        println!("utpamh is null, flags: {}", flags);
-        0
-    }
+    utpam_acct_mgmt(utpamh, flags as u32) as c_int
 }

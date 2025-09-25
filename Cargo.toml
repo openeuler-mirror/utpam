@@ -1,0 +1,12 @@
+[workspace]
+resolver = "2"
+
+members = [ 
+    "lib/libutpam", 
+    "lib/libutpam_internal", 
+    "lib/libutpam_misc", 
+    "lib/libutpamc",
+    "lib/pam",
+    "modules/utpam_deny", 
+    "modules/utpam_echo",
+]

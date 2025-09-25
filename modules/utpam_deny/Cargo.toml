@@ -1,0 +1,13 @@
+[package]
+name = "utpam_deny"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+libutpam = { path = "../../lib/libutpam" }
+
+[lib]
+name = "utpam_deny"
+crate-type = ["rlib","cdylib"]

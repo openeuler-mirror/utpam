@@ -60,7 +60,7 @@ fn replace_and_print(utpamh: &UtpamHandle, mesg: &str) -> u8 {
                 }
             }
             _ => {
-                if utpam_get_item(utpamh, 1, &mut s) == 0 {
+                if utpam_get_item(utpamh, item, &mut s) == 0 {
                     if let Some(s) = s.downcast_ref::<String>() {
                         str = Some(s.clone());
                     }
@@ -79,7 +79,7 @@ fn replace_and_print(utpamh: &UtpamHandle, mesg: &str) -> u8 {
     }
 
     //pam_info (pamh, "%s", output); 将消息输出到日志，待开发
-    println!("output: {:?}", output.join(""));
+    println!("{}", output.join(""));
 
     PAM_SUCCESS
 }
@@ -192,6 +192,7 @@ pub fn utpam_sm_setcred(
 }
 
 //账户管理
+#[no_mangle]
 pub fn utpam_sm_acct_mgmt(
     mut utpamh: &mut Option<Box<UtpamHandle>>,
     flags: u32,
@@ -202,6 +203,7 @@ pub fn utpam_sm_acct_mgmt(
 }
 
 //打开会话
+#[no_mangle]
 pub fn utpam_sm_open_session(
     mut utpamh: &mut Option<Box<UtpamHandle>>,
     flags: u32,
@@ -212,6 +214,7 @@ pub fn utpam_sm_open_session(
 }
 
 //关闭会话
+#[no_mangle]
 pub fn utpam_sm_close_session(
     mut _utpamh: &mut Option<Box<UtpamHandle>>,
     _flags: i32,
@@ -222,6 +225,7 @@ pub fn utpam_sm_close_session(
 }
 
 //密码管理
+#[no_mangle]
 pub fn utpam_sm_chauthtok(
     mut utpamh: &mut Option<Box<UtpamHandle>>,
     flags: u32,

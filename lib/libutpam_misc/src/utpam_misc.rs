@@ -18,7 +18,8 @@
     clippy::write_with_newline,
     clippy::redundant_static_lifetimes,
     clippy::manual_unwrap_or_default,
-    clippy::single_match
+    clippy::single_match,
+    clippy::ptr_arg
 )]
 
 use std::any::Any;
@@ -27,6 +28,62 @@ use std::io::Write;
 use std::rc::Rc;
 use utpam::common::*;
 use utpam::common::{UtpamMessage, UtpamResponse};
+
+//fn read_string
+use nix::sys::termios::Termios;
+use nix::unistd::isatty;
+use std::os::unix::io::RawFd;
+pub const CONV_ECHO_OFF: u8 = 0;
+pub const CONV_ECHO_ON: u8 = 1;
+//use nix::sys::termios::NCCS;
+pub const NCCS: usize = 32;
+pub const PAM_MISC_CONV_BUFSIZE: usize = 4096;
+pub const STDIN_FILENO: u8 = 0;
+
+use nix::errno::Errno;
+use nix::sys::termios;
+
+pub struct __sigset_t {
+    pub val: [u8; 16],
+}
+
+#[no_mangle]
+fn read_string(echo: u8, prompt: String, retstr: &Vec<String>) -> i8 {
+    let mut fd = RawFd::from(0);
+    let mut term_before = termios::tcgetattr(fd);
+    let mut term_tmp: nix::sys::termios::Termios;
+
+    let line: [u8; PAM_MISC_CONV_BUFSIZE] = [0; PAM_MISC_CONV_BUFSIZE];
+    //struct sigaction old_sig;//c中sigaction目前用nix实现，相关结构体定义，暂时不定义相关变量；
+    let mut delay: i32 = 0;
+    let mut nc: i32 = -1;
+    let mut have_term: i8 = 0;
+    let mut oset = __sigset_t { val: [0; 16] };
+    let mut nset = __sigset_t { val: [0; 16] };
+    //D(("called with echo='%s', prompt='%s'.", echo ? "ON":"OFF" , prompt));
+
+    let is_term = isatty(RawFd::from(0)).unwrap_or(false);
+    if is_term {
+        match termios::tcgetattr(STDIN_FILENO as i32) {
+            Ok(_) => {
+                // 如果成功，继续执行其他操作
+                let mut term_tmp = term_before.clone();
+            }
+            Err(_) => {
+                //D(("<error: failed to get terminal settings>"));
+                //*retstr = None; 程序结束后，指针会自动释放
+                return -1;
+            }
+        }
+    } else {
+        let echo_bool = echo != 0;
+        if !echo_bool {
+            //D(("<warning: cannot turn echo off>"));
+        }
+    }
+
+    0
+}
 
 //delete bin
 //函数是字节序的转换作用
@@ -182,11 +239,11 @@ pub fn misc_conv(
             }
             //let mut string: Option<String> = None; remove
             let mut string: Vec<String> = Vec::new();
-            let mut nc: u64 = 0;
+            let mut nc: i8 = 0;
 
             match msgm[count].msg_style {
                 PAM_PROMPT_ECHO_OFF => {
-                    //nc = read_string(CONV_ECHO_OFF,msgm[count].msg,&string);
+                    nc = read_string(CONV_ECHO_OFF, msgm[count].msg.clone(), &string);
                     if nc < 0 {
                         break 'failed_conversation;
                     }

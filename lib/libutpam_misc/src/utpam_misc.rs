@@ -16,7 +16,9 @@
     unused_imports,
     unused_must_use,
     clippy::write_with_newline,
-    clippy::redundant_static_lifetimes
+    clippy::redundant_static_lifetimes,
+    clippy::manual_unwrap_or_default,
+    clippy::single_match
 )]
 
 use std::any::Any;
@@ -25,6 +27,26 @@ use std::io::Write;
 use std::rc::Rc;
 use utpam::common::*;
 use utpam::common::{UtpamMessage, UtpamResponse};
+
+//函数原功能：取消报警且重置信号处理为默认行为；
+//查阅相关资料，关于设置原始信号处理程序可以仍用SigAction::new()方法，
+//只是参数修改为SigDfl即可；
+//原c代码传入原始信号处理结构体，有个rust的库nix后，可以创建一个默认信号处理程序以代替原始信号处理程序，
+//所以此处可以不用设置函数参数，此函数也仅用于当前文件的其他函数(read_string)
+#[no_mangle]
+fn reset_alarm() {
+    alarm::set(0);
+
+    //创建信号处理程序，重点为第一个参数，设置为default;
+    let ori_action = SigAction::new(SigHandler::SigDfl, SaFlags::SA_RESTART, SigSet::empty());
+
+    unsafe {
+        match signal::sigaction(signal::Signal::SIGALRM, &ori_action) {
+            Ok(_) => (),
+            Err(_) => (), // 设置信号失败
+        }
+    }
+}
 
 //fn set_alarm
 use crate::utpam_misc::signal::SigSet;
@@ -39,10 +61,6 @@ extern "C" fn time_is_up(_: i32) {
     }
 }
 
-//用于(模拟)还原信号程序的注册函数，空函数；
-#[no_mangle]
-extern "C" fn doing_nothing(_: i32) {}
-
 //函数大致功能：设置定时器，时间到达时出发相应信号处理函数；
 //函数签名处少了一个参数(原始信号处理结构的指针)，由于rust里面的signal::sigaction后不支持第三个参数，
 //所以无法传入原始指针结构体,此函数也仅被当前文件的read_string函数调用；
@@ -56,12 +74,9 @@ pub fn set_alarm(delay: i32) -> i32 {
         SaFlags::SA_RESTART,
         SigSet::empty(),
     );
-    //创建一个模拟(旧的)信号处理程序，用于恢复至初始化信号状态，
-    let virt_old_action = SigAction::new(
-        SigHandler::Handler(doing_nothing),
-        SaFlags::SA_RESTART,
-        SigSet::empty(),
-    );
+    //创建一个模拟(旧的)信号处理程序，用于恢复至初始化信号状态，原来手动设计了个空函数以满足原始信号处理程序，
+    //后发现第一个参数改为SigDfl就是将某信号的处理重置为默认行为；
+    let virt_old_action = SigAction::new(SigHandler::SigDfl, SaFlags::SA_RESTART, SigSet::empty());
 
     // 尝试设置新的信号处理方式，接收到SIGALRM(定时器到时)信号，即执行new_action中内容，
     // 主要看Handler后的信号注册函数(time_is_up);

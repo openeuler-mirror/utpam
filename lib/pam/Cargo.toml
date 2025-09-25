@@ -9,6 +9,8 @@ edition = "2021"
 libc = "0.2"
 libloading = "0.8.5"
 libutpam = { path = "../libutpam" }
+log = "0.4.22"
+tklog = "0.2.4"
 
 [lib]
 name = "pam"

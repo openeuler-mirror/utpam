@@ -61,7 +61,12 @@ fn utpam_start_internal(
     let utpam_conversation = match utpam_conversation {
         Some(conv) => conv,
         None => {
-            return PAM_ABORT;
+            log::debug!(
+                "{} {}",
+                LOG_ERR,
+                "utpam_start: invalid argument: conv == None"
+            );
+            return PAM_SYSTEM_ERR;
         }
     };
 

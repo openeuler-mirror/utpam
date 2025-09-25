@@ -7,11 +7,13 @@
 use crate::pam_conv::pamconv_to_utpamconv;
 use crate::pam_conv::PamConv;
 use crate::pam_private::pam_handle_t;
-use libc::*;
+use libc::{c_char, c_int};
 use std::ffi::CStr;
 use std::rc::Rc;
+use utpam::common::*;
 use utpam::utpam::UtpamHandle;
 use utpam::utpam_start::utpam_start;
+use utpam::utpam_syslog::*;
 
 // C兼容的初始化函数
 #[no_mangle]
@@ -21,7 +23,36 @@ pub extern "C" fn pam_start(
     pam_conversation: *const PamConv,
     pamh: *mut *mut pam_handle_t,
 ) -> c_int {
-    let service_name = unsafe { CStr::from_ptr(service_name).to_string_lossy().into_owned() };
+    //初始化日志
+    log_init();
+
+    if pamh.is_null() {
+        log::debug!(
+            "{} {}",
+            LOG_ERR,
+            "pam_start: invalid argument: pamh == NULL"
+        );
+        return PAM_SYSTEM_ERR as c_int;
+    }
+    let service_name = if service_name.is_null() {
+        log::debug!(
+            "{} {}",
+            LOG_ERR,
+            "pam_start: invalid argument: service == NULL"
+        );
+        return PAM_SYSTEM_ERR as c_int;
+    } else {
+        unsafe { CStr::from_ptr(service_name).to_string_lossy().into_owned() }
+    };
+    if pam_conversation.is_null() {
+        log::debug!(
+            "{} {}",
+            LOG_ERR,
+            "pam_start: invalid argument: conv == NULL"
+        );
+        return PAM_SYSTEM_ERR as c_int;
+    }
+
     let user = if user.is_null() {
         None
     } else {

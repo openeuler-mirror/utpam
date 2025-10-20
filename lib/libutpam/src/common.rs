@@ -10,9 +10,11 @@ use std::fmt::{Debug, Formatter, Result};
 use std::rc::Rc;
 
 pub const PAM_PROMPT_ECHO_OFF: u8 = 1;
-pub const PAM_BINARY_PROMPT: u8 = 7;
+pub const PAM_PROMPT_ECHO_ON: u8 = 2;
 pub const PAM_ERROR_MSG: u8 = 3;
 pub const PAM_TEXT_INFO: u8 = 4;
+
+pub const PAM_BINARY_PROMPT: u8 = 7;
 
 pub const PAM_SUCCESS: u8 = 0;
 pub const PAM_OPEN_ERR: u8 = 1;
@@ -81,8 +83,6 @@ pub const PAM_DATA_REPLACE: i32 = 0x20000000;
 pub const PAM_SILENT: u32 = 0x8000;
 
 pub const PAM_MAX_MSG_SIZE: usize = 512;
-
-pub const PAM_PROMPT_ECHO_ON: u8 = 2;
 
 //日志存放在当前目录下，pam.log
 //之后可以更改该参数，比如/var/log/secure

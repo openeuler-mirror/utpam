@@ -18,12 +18,16 @@ macro_rules! TRY_SET {
     ($old:expr, $item:expr, $field:ty) => {
         match $item {
             Some(item) => {
-                if let Ok(data) = item.downcast::<$field>() {
-                    if *data != $old {
-                        $old = *data;
+                match item.downcast::<$field>() {
+                    Ok(data) => {
+                        if *data != $old {
+                            $old = *data;
+                        }
                     }
-                } else {
-                    return PAM_BAD_ITEM;
+                    Err(_) => {
+                        println!("[{}] [{}] [{}] 类型不匹配：$item和$field的类型需要保持一致",file!(), stdext::function_name!(), line!());
+                        return PAM_BAD_ITEM;
+                    }
                 }
             },
             None => {

@@ -16,7 +16,7 @@ pub fn utpam_sm_authenticate(
     _argc: Option<i32>,
     _argv: Option<Vec<String>>,
 ) -> u8 {
-    PAM_SESSION_ERR
+    PAM_AUTH_ERR
 }
 
 //设置凭证
@@ -27,7 +27,7 @@ pub fn utpam_sm_setcred(
     _argc: Option<i32>,
     _argv: Option<Vec<String>>,
 ) -> u8 {
-    PAM_SESSION_ERR
+    PAM_CRED_ERR
 }
 
 //账户管理
@@ -38,7 +38,7 @@ pub fn utpam_sm_acct_mgmt(
     _argc: Option<i32>,
     _argv: Option<Vec<String>>,
 ) -> u8 {
-    PAM_SESSION_ERR
+    PAM_AUTH_ERR
 }
 
 //密码管理
@@ -49,7 +49,7 @@ pub fn utpam_sm_chauthtok(
     _argc: Option<i32>,
     _argv: Option<Vec<String>>,
 ) -> u8 {
-    PAM_SESSION_ERR
+    PAM_AUTHTOK_ERR
 }
 
 //打开会话

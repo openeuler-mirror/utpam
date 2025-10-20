@@ -95,20 +95,25 @@ fn utpam_dispatch_aux(
             //depth += 1;  ////跳过子堆栈
             *handlers = h.next.take();
             continue;
-        } else if h.func.is_none() {
-            println!("module function is not defined, indicating failure");
-            retval = PAM_MODULE_UNKNOWN; //模块函数未定义，失败
         } else {
-            println!("passing control to module...");
-            utpamh.mod_name = h.mod_name.clone();
-            utpamh.mod_argc = h.argc;
-            utpamh.mod_argv = h.argv.clone();
+            match h.func {
+                Some(func) => {
+                    //println!("passing control to module...");
+                    utpamh.mod_name = h.mod_name.clone();
+                    utpamh.mod_argc = h.argc;
+                    utpamh.mod_argv = h.argv.clone();
 
-            let func = h.func.unwrap();
-            retval = func(utpamh, flags, Some(h.argc), Some(h.argv.clone()));
-            utpamh.mod_name = String::default();
-            utpamh.mod_argc = 0;
-            utpamh.mod_argv = vec![];
+                    retval = func(utpamh, flags, Some(h.argc), Some(h.argv.clone()));
+                    println!("retval: {:?}", retval);
+                    utpamh.mod_name = String::default();
+                    utpamh.mod_argc = 0;
+                    utpamh.mod_argv = vec![];
+                }
+                None => {
+                    //println!("module function is not defined, indicating failure");
+                    retval = PAM_MODULE_UNKNOWN; //模块函数未定义，失败
+                }
+            }
         }
 
         if retval == PAM_INCOMPLETE {
@@ -335,7 +340,7 @@ pub fn utpam_dispatch(utpamh: &mut Box<UtpamHandle>, flags: u32, choice: u8) -> 
     UTPAM_TO_MODULE!(utpamh);
 
     // 处理模块函数列表
-    utpamh.former.choice = choice;
+    utpamh.choice = choice;
     let mut h_local = h.clone();
     retval = utpam_dispatch_aux(utpamh, flags, &mut h_local, resumed, use_cached_chain);
 

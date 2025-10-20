@@ -12,21 +12,37 @@ use crate::utpam_overwrite_string;
 use crate::utpam_syslog::*;
 use crate::{common::*, pam_syslog};
 use std::any::Any;
+use std::rc::Rc;
 use zeroize::Zeroize;
+
+const PAM_PROMPT_ECHO_OFF: i32 = 1;
+const PAM_PROMPT_ECHO_ON: i32 = 2;
+const PAM_ERROR_MSG: i32 = 3;
+const PAM_TEXT_INFO: i32 = 4;
+
+#[macro_export]
+macro_rules! pam_info {
+    ($utpamh:expr, $fmt:expr, $($args:tt),*) => {{
+        let msgbuf = format!($fmt, $($args),*);
+        pam_vprompt($utpamh, PAM_TEXT_INFO as i32, Vec::new(), msgbuf);
+    }
+}
+}
 
 #[macro_export]
 macro_rules! pam_prompt {
     ($utpamh:expr, $style:expr, $response:expr,$fmt:expr, $($args:tt),*) => {{
         let msgbuf = format!($fmt, $($args),*);
-        pam_vprompt($utpamh, $style, $response, $msgbuf);
+        pam_vprompt($utpamh, $style, $response, msgbuf);
     }
 }
 }
-fn pam_vprompt(
+
+pub fn pam_vprompt(
     utpamh: &UtpamHandle,
     style: i32,
     mut response: Vec<String>,
-    msgbuf: &mut str,
+    msgbuf: String,
 ) -> i32 {
     let mut msg = UtpamMessage {
         msg_style: style as u8,
@@ -44,14 +60,12 @@ fn pam_vprompt(
     if retval != PAM_SUCCESS {
         return retval as i32;
     }
-
-    let conv: &UtpamConv = match convp.downcast_ref::<UtpamConv>() {
+    let conv: &UtpamConv = match convp.downcast_ref::<Rc<UtpamConv>>() {
         Some(item) => item,
         None => {
             return PAM_SYSTEM_ERR as i32;
         }
     };
-
     let new_conv = match conv.conv {
         Some(ref conv) => conv,
         None => {
@@ -64,8 +78,7 @@ fn pam_vprompt(
         pam_syslog!(utpamh, LOG_ERR, "empty message",);
         return PAM_CONV_ERR as i32;
     }
-
-    msg.msg = msgbuf.to_string();
+    msg.msg = msgbuf.clone();
     // 调用conv()函数，只获取1条消息
     retval = new_conv(1, &[msg], &mut pam_resp, conv.appdata_ptr.clone());
     if retval != PAM_SUCCESS && pam_resp.is_some() {
@@ -75,7 +88,6 @@ fn pam_vprompt(
             "unexpected response from failed conversation function",
         );
     }
-
     if !response.is_empty() {
         match pam_resp {
             Some(ref mut resp) => {
@@ -88,8 +100,7 @@ fn pam_vprompt(
             None => response.push("".to_string()),
         }
     }
-
-    utpam_overwrite_string!(msgbuf);
+    utpam_overwrite_string!(msgbuf.clone());
 
     if retval != PAM_SUCCESS {
         pam_syslog!(utpamh, LOG_ERR, "conversation failed",);

@@ -7,17 +7,9 @@
 #![allow(clippy::borrow_interior_mutable_const)]
 
 use crate::common::PAM_LOG_FILE;
-use crate::utpam::UtpamHandle;
+use crate::utpam::*;
 use colored::*;
 use tklog::{LOG, MODE};
-
-//const PAM_NOT_STACKED: i8 = 0;
-const PAM_AUTHENTICATE: i8 = 1;
-const PAM_SETCRED: i8 = 2;
-const PAM_ACCOUNT: i8 = 3;
-const PAM_OPEN_SESSION: i8 = 4;
-const PAM_CLOSE_SESSION: i8 = 5;
-const PAM_CHAUTHTOK: i8 = 6;
 
 pub fn log_init() {
     let levelstr = "{level}".green(); //日志级别标识设置为绿色
@@ -35,7 +27,7 @@ pub fn log_init() {
     LOG.set_printmode(tklog::PRINTMODE::PUNCTUAL);
 }
 
-fn _pam_choice2str(choice: i8) -> &'static str {
+fn _pam_choice2str(choice: u8) -> &'static str {
     match choice {
         PAM_AUTHENTICATE => "auth",
         PAM_SETCRED => "setcred",
@@ -87,7 +79,7 @@ pub fn utpam_patching_msgbuf1(utpamh: &UtpamHandle) -> String {
         "{}({}:{}):",
         &utpamh.mod_name,
         temp_string,
-        _pam_choice2str(utpamh.choice as i8)
+        _pam_choice2str(utpamh.choice)
     );
     msgbuf1
 }

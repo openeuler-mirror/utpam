@@ -133,7 +133,7 @@ pub struct UtpamHandle {
     pub(super) mod_name: String,
     pub(super) mod_argc: i32,
     pub(super) mod_argv: Vec<String>,
-    pub(super) choice: isize,
+    pub(super) choice: u8,
     pub(super) audit_state: isize,
     pub(super) authtok_verified: isize,
     pub(super) confdir: PathBuf,

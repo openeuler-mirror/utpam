@@ -6,6 +6,7 @@
 #![allow(unused_assignments)]
 #![allow(clippy::borrow_interior_mutable_const)]
 
+use crate::common::PAM_LOG_FILE;
 use crate::utpam::UtpamHandle;
 use colored::*;
 use tklog::{LOG, MODE};
@@ -17,10 +18,6 @@ const PAM_ACCOUNT: i8 = 3;
 const PAM_OPEN_SESSION: i8 = 4;
 const PAM_CLOSE_SESSION: i8 = 5;
 const PAM_CHAUTHTOK: i8 = 6;
-
-//日志存放在当前目录下，pam.log
-//之后可以更改该参数，比如/var/log/secure
-const PAM_LOG_FILE: &str = "pam.log";
 
 pub fn log_init() {
     let levelstr = "{level}".green(); //日志级别标识设置为绿色

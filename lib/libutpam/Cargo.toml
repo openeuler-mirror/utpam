@@ -15,7 +15,11 @@ libutpam_internal = { path = "../libutpam_internal" }
 log = "0.4.22"
 tklog = "0.2.4"
 colored = "2.1.0"
+stdext = "0.3.1"
 
 [lib]
 name = "utpam"
 crate-type = ["rlib","cdylib"]
+
+[features]
+debug = []

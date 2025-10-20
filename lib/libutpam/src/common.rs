@@ -6,6 +6,7 @@
 #![allow(dead_code, unused_mut, unused_variables)]
 ///存放utpam公共的结构体和常量
 use std::any::Any;
+use std::fmt::{Debug, Formatter, Result};
 use std::rc::Rc;
 
 pub const PAM_PROMPT_ECHO_OFF: u8 = 1;
@@ -145,6 +146,39 @@ pub struct UtpamConv {
     pub conv: Option<MiscConv>,
     pub appdata_ptr: Option<Rc<dyn Any>>,
 }
+
+// 实现Debug特性
+impl Debug for UtpamConv {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        f.debug_struct("UtpamConv")
+            .field(
+                "conv",
+                &match &self.conv {
+                    Some(conv) => {
+                        //显示conv的地址
+                        format!("{:p}", conv)
+                    }
+                    None => "None".to_string(),
+                },
+            )
+            .field(
+                "appdata_ptr",
+                &match &self.appdata_ptr {
+                    Some(appdata_ptr) => {
+                        //只显示String类型
+                        if let Some(value) = appdata_ptr.downcast_ref::<String>() {
+                            value.to_string()
+                        } else {
+                            format!("{:?}", appdata_ptr)
+                        }
+                    }
+                    None => "None".to_string(),
+                },
+            )
+            .finish()
+    }
+}
+
 pub struct UtpamResponse {
     pub resp: Vec<String>,
     pub resp_retcode: isize,

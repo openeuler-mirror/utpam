@@ -106,7 +106,7 @@ pub fn utpam_parse_control(control_array: &mut [i32], mut tok: &str) {
         for token in PAM_TOKEN_RETURNS.iter() {
             let len = token.len();
             if tok.starts_with(token) {
-                tok = &tok[len..].trim_start();
+                tok = tok[len..].trim_start();
                 break;
             }
             ret += 1;
@@ -122,7 +122,7 @@ pub fn utpam_parse_control(control_array: &mut [i32], mut tok: &str) {
         match tok.trim_start().chars().next() {
             Some(s) => {
                 if s == '=' {
-                    tok = &tok[1..].trim_start();
+                    tok = tok[1..].trim_start();
                 } else {
                     println!("expecting '='");
                     set_and_break!(control_array);
@@ -139,7 +139,7 @@ pub fn utpam_parse_control(control_array: &mut [i32], mut tok: &str) {
         for token in PAM_TOKEN_ACTIONS.iter() {
             let len = token.len();
             if tok.starts_with(token) {
-                tok = &tok[len..].trim_start();
+                tok = tok[len..].trim_start();
                 break;
             }
             act += 1;
@@ -167,7 +167,7 @@ pub fn utpam_parse_control(control_array: &mut [i32], mut tok: &str) {
                         break;
                     }
                 };
-                tok = &tok[1..].trim_start();
+                tok = tok[1..].trim_start();
             }
 
             if act == 0 {

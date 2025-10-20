@@ -54,10 +54,7 @@ fn utpam_start_internal(
     let service_name = parse_str(service_name);
 
     //判断配置目录是否存在
-    let confdir = match confdir {
-        Some(path) => path,
-        None => PathBuf::default(),
-    };
+    let confdir = confdir.unwrap_or_default();
     let utpam_conversation = match utpam_conversation {
         Some(conv) => conv,
         None => {

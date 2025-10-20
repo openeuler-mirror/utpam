@@ -84,6 +84,10 @@ pub const PAM_MAX_MSG_SIZE: usize = 512;
 
 pub const PAM_PROMPT_ECHO_ON: u8 = 2;
 
+//日志存放在当前目录下，pam.log
+//之后可以更改该参数，比如/var/log/secure
+pub const PAM_LOG_FILE: &str = "pam.log";
+
 pub const PAM_TOKEN_RETURNS: [&str; 33] = [
     "success",
     "open_err",
@@ -205,4 +209,45 @@ impl UtpamXAuthData {
         self.datalen = 0;
         self.data.clear();
     }
+}
+
+/// 输出调试信息到日志文件或标准错误流
+#[cfg(feature = "debug")]
+pub fn utpam_output_debug_and_info(
+    file: &str,
+    fn_name: &str,
+    line: u32,
+    args: std::fmt::Arguments,
+) {
+    use std::fs::OpenOptions;
+    use std::io::Write;
+
+    match OpenOptions::new()
+        .write(true)
+        .append(true)
+        .open(PAM_LOG_FILE)
+    {
+        Ok(mut log_file) => {
+            if let Err(e) = writeln!(log_file, "[{}:{}({})] {}", file, fn_name, line, args) {
+                eprintln!("Failed to write to log file: {}", e);
+            }
+        }
+        Err(_) => {
+            println!("[{}:{}({})] {}", file, fn_name, line, args);
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! D {
+    ($($msg:tt)*)  => {
+        #[cfg(feature = "debug")]
+        {
+            utpam_output_debug_and_info(file!(), stdext::function_name!(), line!(), format_args!($($msg)*));
+        }
+
+        {
+            // 在非调试模式下不做任何事情
+        }
+    };
 }

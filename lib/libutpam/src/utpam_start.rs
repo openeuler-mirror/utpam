@@ -12,6 +12,7 @@ use crate::utpam::{UtpamHandle, PAM_CALLED_FROM_APP};
 use crate::utpam_env::utpam_make_env;
 use crate::utpam_handlers::*;
 use crate::utpam_syslog::*;
+use crate::D;
 use crate::{pam_syslog, UTPAM_TO_APP};
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -50,6 +51,14 @@ fn utpam_start_internal(
 ) -> u8 {
     //初始化日志
     log_init();
+    D!(
+        "called pam_start: [{}] [{:?}] [{:?}] [{:?}]",
+        service_name,
+        user,
+        utpam_conversation,
+        utpamh
+    );
+
     //处理服务名称
     let service_name = parse_str(service_name);
 

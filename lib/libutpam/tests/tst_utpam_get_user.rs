@@ -51,7 +51,7 @@ fn tst_utpam_get_user() -> u8 {
     let service = "dummy".to_string();
     let value = String::default();
     let conv = Rc::new(UtpamConv {
-        conv: None,
+        conv: Some(Box::new(login_conv)),
         appdata_ptr: None,
     });
     let mut utpamh: Option<Box<UtpamHandle>> = None;

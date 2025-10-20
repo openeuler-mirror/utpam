@@ -15,16 +15,20 @@ use std::any::Any;
 use std::rc::Rc;
 use zeroize::Zeroize;
 
-const PAM_PROMPT_ECHO_OFF: i32 = 1;
-const PAM_PROMPT_ECHO_ON: i32 = 2;
-const PAM_ERROR_MSG: i32 = 3;
-const PAM_TEXT_INFO: i32 = 4;
+#[macro_export]
+macro_rules! pam_error {
+    ($utpamh:expr, $fmt:expr, $($args:tt),*) => {{
+        let msgbuf = format!($fmt, $($args),*);
+        pam_vprompt($utpamh, PAM_ERROR_MSG, Vec::new(), msgbuf);
+    }
+}
+}
 
 #[macro_export]
 macro_rules! pam_info {
     ($utpamh:expr, $fmt:expr, $($args:tt),*) => {{
         let msgbuf = format!($fmt, $($args),*);
-        pam_vprompt($utpamh, PAM_TEXT_INFO as i32, Vec::new(), msgbuf);
+        pam_vprompt($utpamh, PAM_TEXT_INFO, Vec::new(), msgbuf);
     }
 }
 }
@@ -33,19 +37,19 @@ macro_rules! pam_info {
 macro_rules! pam_prompt {
     ($utpamh:expr, $style:expr, $response:expr,$fmt:expr, $($args:tt),*) => {{
         let msgbuf = format!($fmt, $($args),*);
-        pam_vprompt($utpamh, $style, $response, msgbuf);
+        pam_vprompt($utpamh, $style, $response, msgbuf)
     }
 }
 }
 
 pub fn pam_vprompt(
     utpamh: &UtpamHandle,
-    style: i32,
+    style: u8,
     mut response: Vec<String>,
     msgbuf: String,
-) -> i32 {
+) -> u8 {
     let mut msg = UtpamMessage {
-        msg_style: style as u8,
+        msg_style: style,
         msg: String::default(),
     };
     let mut pam_resp: Option<Vec<UtpamResponse>> = None;
@@ -58,25 +62,25 @@ pub fn pam_vprompt(
 
     retval = utpam_get_item(utpamh, PAM_CONV, &mut convp);
     if retval != PAM_SUCCESS {
-        return retval as i32;
+        return retval;
     }
     let conv: &UtpamConv = match convp.downcast_ref::<Rc<UtpamConv>>() {
         Some(item) => item,
         None => {
-            return PAM_SYSTEM_ERR as i32;
+            return PAM_SYSTEM_ERR;
         }
     };
     let new_conv = match conv.conv {
         Some(ref conv) => conv,
         None => {
             pam_syslog!(utpamh, LOG_ERR, "no conversation function",);
-            return PAM_SYSTEM_ERR as i32;
+            return PAM_SYSTEM_ERR;
         }
     };
 
     if msgbuf.is_empty() {
         pam_syslog!(utpamh, LOG_ERR, "empty message",);
-        return PAM_CONV_ERR as i32;
+        return PAM_CONV_ERR;
     }
     msg.msg = msgbuf.clone();
     // 调用conv()函数，只获取1条消息
@@ -106,5 +110,5 @@ pub fn pam_vprompt(
         pam_syslog!(utpamh, LOG_ERR, "conversation failed",);
     }
 
-    retval as i32
+    retval
 }

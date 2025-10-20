@@ -26,3 +26,4 @@ pub mod utpam_session;
 pub mod utpam_start;
 pub mod utpam_strerror;
 pub mod utpam_syslog;
+pub mod utpam_vprompt;

@@ -110,6 +110,7 @@ macro_rules! UTPAM_TO_APP {
     };
 }
 
+#[derive(Debug)]
 pub struct UtpamHandle {
     pub(super) authtok: String,
     pub(super) pam_conversation: Rc<UtpamConv>,
@@ -209,16 +210,6 @@ impl UtpamHandle {
             confdir,
         }
     }
-
-    //    /// 公共方法，允许其他包获取字段的引用。
-    //     pub fn get_field(&self) -> &str {
-    //         &self.field
-    //     }
-
-    //     /// 公共方法，允许其他包修改字段。
-    //     pub fn set_field(&mut self, field: String) {
-    //         self.field = field;
-    //     }
 }
 
 pub type CleanupFn = fn(&mut UtpamHandle, Option<Rc<dyn Any>>, i32);

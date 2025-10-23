@@ -52,7 +52,7 @@ pub const PAM_ENV_CHUNK: u8 = 10;
 pub const UTPAM_CONFIG: &str = "/etc/utpam.conf";
 pub const UTPAM_CONFIG_D: &str = "/etc/utpam.d";
 pub const UTPAM_CONFIG_DIST_D: &str = "/usr/lib/utpam.d";
-
+pub const UTPAM_CONFIG_DIST2_D: &str = "/utpam.d";
 pub const UTPAM_DEFAULT_SERVICE: &str = "other";
 
 #[macro_export]

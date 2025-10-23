@@ -58,10 +58,19 @@ pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> u8 {
     let mut file: Option<File> = None;
 
     //检查配置目录是否存在
+    let mut dir_exist: bool = false;
     if utpamh.confdir.exists()
         || check_directory(UTPAM_CONFIG_D)
         || check_directory(UTPAM_CONFIG_DIST_D)
     {
+        dir_exist = true;
+    }
+    #[cfg(feature = "PAM_CONFIG_DIST2_D")]
+    if check_directory(UTPAM_CONFIG_DIST2_D) {
+        dir_exist = true;
+    }
+
+    if dir_exist {
         let mut read_something = 0;
         //打开配置文件并解析
         if utpam_open_config_file(utpamh, utpamh.service_name.clone(), &mut path, &mut file)
@@ -75,6 +84,7 @@ pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> u8 {
                 PAM_T_ANY,
                 0,
                 0,
+                #[cfg(feature = "PAM_READ_BOTH_CONFS")]
                 false,
             );
 
@@ -100,7 +110,28 @@ pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> u8 {
                 "unable to open configuration for: {:?}",
                 utpamh.service_name
             );
-            retval = PAM_SUCCESS;
+            #[cfg(feature = "PAM_READ_BOTH_CONFS")]
+            D!("checking : {:?}", UTPAM_CONFIG);
+
+            #[cfg(feature = "PAM_READ_BOTH_CONFS")]
+            if !utpamh.confdir.exists() {
+                if let Ok(mut f) = File::open(UTPAM_CONFIG) {
+                    retval = utpam_parse_config_file(
+                        utpamh,
+                        &mut f,
+                        None,
+                        PAM_T_ANY,
+                        0,
+                        0,
+                        #[cfg(feature = "PAM_READ_BOTH_CONFS")]
+                        true,
+                    );
+                }
+            }
+            #[cfg(not(feature = "PAM_READ_BOTH_CONFS"))]
+            {
+                retval = PAM_SUCCESS;
+            }
         }
 
         if retval == PAM_SUCCESS {
@@ -118,6 +149,7 @@ pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> u8 {
                     PAM_T_ANY,
                     0,
                     0,
+                    #[cfg(feature = "PAM_READ_BOTH_CONFS")]
                     false,
                 );
                 if retval != PAM_SUCCESS {
@@ -157,7 +189,16 @@ pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> u8 {
         let path = Path::new(UTPAM_CONFIG);
         match File::open(path) {
             Ok(ref mut file) => {
-                retval = utpam_parse_config_file(utpamh, file, None, PAM_T_ANY, 0, 0, false);
+                retval = utpam_parse_config_file(
+                    utpamh,
+                    file,
+                    None,
+                    PAM_T_ANY,
+                    0,
+                    0,
+                    #[cfg(feature = "PAM_READ_BOTH_CONFS")]
+                    false,
+                );
             }
             Err(_) => {
                 pam_syslog!(
@@ -256,7 +297,7 @@ fn utpam_load_conf_file(
     module_type: i32,
     include_level: i32,
     stack_level: i32,
-    not_other: bool,
+    #[cfg(feature = "PAM_READ_BOTH_CONFS")] not_other: bool,
 ) -> u8 {
     let mut file: Option<File> = None;
     let mut path: Option<PathBuf> = None;
@@ -291,6 +332,7 @@ fn utpam_load_conf_file(
             module_type,
             include_level,
             stack_level,
+            #[cfg(feature = "PAM_READ_BOTH_CONFS")]
             not_other,
         );
         if retval != PAM_SUCCESS {
@@ -326,7 +368,7 @@ fn utpam_parse_config_file(
     requested_module_type: i32,
     include_level: i32,
     stack_level: i32,
-    not_other: bool,
+    #[cfg(feature = "PAM_READ_BOTH_CONFS")] not_other: bool,
 ) -> u8 {
     let mut f = BufReader::new(file);
     let mut buffer = UtpamLineBuffer::default();
@@ -345,6 +387,7 @@ fn utpam_parse_config_file(
         let mut res;
         let mut argc = 0;
         let mut argv: Vec<String> = vec![];
+        let other: bool;
 
         D!("LINE: {:?}", buf);
         //判断是否提供服务名称
@@ -362,11 +405,17 @@ fn utpam_parse_config_file(
             },
         };
 
-        let other = if not_other {
-            false
+        #[cfg(feature = "PAM_READ_BOTH_CONFS")]
+        if not_other {
+            other = false;
         } else {
-            this_service.eq_ignore_ascii_case(UTPAM_DEFAULT_SERVICE)
-        };
+            other = this_service.eq_ignore_ascii_case(UTPAM_DEFAULT_SERVICE);
+        }
+
+        #[cfg(not(feature = "PAM_READ_BOTH_CONFS"))]
+        {
+            other = this_service.eq_ignore_ascii_case(UTPAM_DEFAULT_SERVICE);
+        }
 
         let accspt = this_service.eq_ignore_ascii_case(&utpamh.service_name.clone());
 
@@ -529,6 +578,7 @@ fn utpam_parse_config_file(
                             module_type,
                             include_level + 1,
                             stack_level + substack,
+                            #[cfg(feature = "PAM_READ_BOTH_CONFS")]
                             not_other,
                         ) == PAM_SUCCESS
                         {

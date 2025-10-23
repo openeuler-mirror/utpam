@@ -261,3 +261,12 @@ macro_rules! D {
         }
     };
 }
+
+#[macro_export]
+macro_rules! utpam_output_debug {
+    ($($msg:tt)*)  => {
+        {
+            utpam_output_debug(format_args!($($msg)*));
+        }
+    };
+}

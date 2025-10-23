@@ -7,6 +7,7 @@ pub mod common;
 pub mod parse;
 pub mod utpam;
 pub mod utpam_account;
+pub mod utpam_audit;
 pub mod utpam_auth;
 pub mod utpam_data;
 pub mod utpam_delay;

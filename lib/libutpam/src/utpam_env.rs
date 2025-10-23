@@ -9,11 +9,37 @@ use crate::utpam_misc::utpam_strdup;
 use crate::utpam_syslog::*;
 use crate::{pam_syslog, D, IF_NO_UTPAMH};
 
+#[cfg(feature = "debug")]
+use crate::utpam_output_debug;
+
 #[derive(Debug)]
 pub struct UtpamEnviron {
     entries: u8,
     requested: usize,
     list: Vec<String>,
+}
+
+#[cfg(feature = "debug")]
+fn utpam_dump_env(env: &mut Option<UtpamEnviron>) {
+    match env {
+        Some(env) => {
+            D!("utpamh.env= {:?}", env);
+            D!(
+                "environment entries used = {} [of {} allocated]",
+                env.requested,
+                env.entries
+            );
+
+            //遍历环境列表
+            for (i, list) in env.list.iter_mut().enumerate() {
+                utpam_output_debug!("{} [{}]", i, list)
+            }
+            utpam_output_debug!("*NOTE* the last item should be (nil)")
+        }
+        None => {
+            D!("UtpamEnviron is NULL");
+        }
+    }
 }
 
 /// 创建环境变量
@@ -25,7 +51,10 @@ pub fn utpam_make_env(env: &mut Option<UtpamEnviron>) -> u8 {
         requested: 1,
         list: Vec::new(),
     });
-    //_pam_dump_env(pamh); 待实现（输出调试信息）
+
+    #[cfg(feature = "debug")]
+    utpam_dump_env(env);
+
     PAM_SUCCESS
 }
 
@@ -84,7 +113,7 @@ pub fn utpam_putenv(utpamh: &mut Option<Box<UtpamHandle>>, name_value: &str) -> 
         pam_syslog!(&utpamh, LOG_ERR, "utpam_putenv: bad variable",);
         return PAM_BAD_ITEM;
     }
-    match utpamh.env {
+    let retval = match utpamh.env {
         Some(ref mut env) => {
             if env.list.is_empty() {
                 pam_syslog!(&utpamh, LOG_ERR, "utpam_putenv: no env-list found",);
@@ -124,7 +153,12 @@ pub fn utpam_putenv(utpamh: &mut Option<Box<UtpamHandle>>, name_value: &str) -> 
             pam_syslog!(&utpamh, LOG_ERR, "utpam_putenv: no env found",);
             PAM_ABORT
         }
-    }
+    };
+
+    #[cfg(feature = "debug")]
+    utpam_dump_env(&mut utpamh.env);
+
+    retval
 }
 
 pub fn utpam_getenv(utpamh: &mut Option<Box<UtpamHandle>>, name: &str) -> Option<String> {
@@ -226,15 +260,22 @@ pub fn utpam_getenvlist(utpamh: &mut Option<Box<UtpamHandle>>) -> Option<Vec<Str
             LOG_ERR,
             "utpam_getenvlist: environment corruptiond",
         );
+        #[cfg(feature = "debug")]
+        utpam_dump_env(&mut utpamh.env);
         return None;
     }
 
     for i in (0..env.requested).rev() {
         if env.list[i].is_empty() {
             pam_syslog!(&utpamh, LOG_ERR, "utpam_getenvlist: environment broken",);
+            #[cfg(feature = "debug")]
+            utpam_dump_env(&mut utpamh.env);
             return None;
         }
     }
+
+    #[cfg(feature = "debug")]
+    utpam_dump_env(&mut utpamh.env);
 
     copy_env(utpamh)
 }

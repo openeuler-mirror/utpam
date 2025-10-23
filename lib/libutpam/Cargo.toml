@@ -24,5 +24,8 @@ crate-type = ["rlib","cdylib"]
 [features]
 debug = []
 have_audit= []
+PAM_READ_BOTH_CONFS = []
+PAM_CONFIG_DIST2_D = []
 
 default = ["debug", "have_audit"]
+

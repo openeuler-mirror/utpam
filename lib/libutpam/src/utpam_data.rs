@@ -5,11 +5,17 @@
  */
 use crate::common::{PAM_DATA_REPLACE, PAM_NO_MODULE_DATA, PAM_SUCCESS, PAM_SYSTEM_ERR};
 use crate::utpam::*;
-use crate::{IF_NO_UTPAMH, UTPAM_FROM_APP};
+use crate::{D, IF_NO_UTPAMH, UTPAM_FROM_APP};
 use std::any::Any;
 use std::rc::Rc;
+
+#[cfg(feature = "debug")]
+use crate::common::utpam_output_debug_and_info;
+
 /// 查找UtpamData结构体里的特定数据
 pub fn utpam_locate_data<'a>(utpamh: &'a UtpamHandle, name: &'a str) -> Option<&'a UtpamData> {
+    D!("called");
+
     let mut current = utpamh.data.as_ref();
     while let Some(data) = current {
         if data.name == name {
@@ -34,17 +40,19 @@ pub fn utpam_set_data(
         next: None,
     };
 
+    D!("called");
+
     let utpamh = IF_NO_UTPAMH!(utpamh, PAM_SYSTEM_ERR);
 
     if UTPAM_FROM_APP!(utpamh) {
-        println!("called from application!?");
+        D!("called from application!?");
         return PAM_SYSTEM_ERR;
     }
 
     let module_data_name = match module_data_name {
         Some(name) => name,
         None => {
-            println!("called with NULL as module_data_name");
+            D!("called with NULL as module_data_name");
             return PAM_SYSTEM_ERR;
         }
     };
@@ -83,17 +91,19 @@ pub fn utpam_get_data(
     module_data_name: Option<&str>,
     datap: &mut Option<Rc<dyn Any>>,
 ) -> u8 {
+    D!("called");
+
     let utpamh = IF_NO_UTPAMH!(utpamh, PAM_SYSTEM_ERR);
 
     if UTPAM_FROM_APP!(utpamh) {
-        println!("called from application!?");
+        D!("called from application!?");
         return PAM_SYSTEM_ERR;
     }
 
     let module_data_name = match module_data_name {
         Some(name) => name,
         None => {
-            println!("called with NULL as module_data_name");
+            D!("called with NULL as module_data_name");
             return PAM_SYSTEM_ERR;
         }
     };
@@ -108,6 +118,8 @@ pub fn utpam_get_data(
 
 // 清理数据
 pub fn utpam_free_data(utpamh: &mut Box<UtpamHandle>, status: i32) {
+    D!("called");
+
     let mut current = utpamh.data.take();
     while let Some(mut data) = current {
         current = data.next.take();

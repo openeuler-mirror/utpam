@@ -222,11 +222,7 @@ pub fn utpam_output_debug_and_info(
     use std::fs::OpenOptions;
     use std::io::Write;
 
-    match OpenOptions::new()
-        .write(true)
-        .append(true)
-        .open(PAM_LOG_FILE)
-    {
+    match OpenOptions::new().append(true).open(PAM_LOG_FILE) {
         Ok(mut log_file) => {
             if let Err(e) = writeln!(log_file, "[{}:{}({})] {}", file, fn_name, line, args) {
                 eprintln!("Failed to write to log file: {}", e);

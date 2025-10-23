@@ -4,12 +4,10 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 ///一些辅助函数
-use crate::common::{
-    PAM_AUTHTOK, PAM_OLDAUTHTOK, PAM_RETURN_VALUES, PAM_TOKEN_ACTIONS, PAM_TOKEN_RETURNS,
-};
+use crate::common::*;
 use crate::utpam::{UtpamHandle, PAM_ACTION_UNDEF, PAM_CALLED_FROM_MODULE};
 use crate::utpam_item::utpam_set_item;
-use crate::UTPAM_TO_MODULE;
+use crate::{D, UTPAM_TO_MODULE};
 use std::mem::size_of;
 //设置control_array数组的值并退出
 macro_rules! set_and_break {
@@ -114,7 +112,13 @@ pub fn utpam_parse_control(control_array: &mut [i32], mut tok: &str) {
 
         //如果没有匹配到返回码，或者tok为空，则退出
         if ret > PAM_RETURN_VALUES || tok.is_empty() {
-            println!("expecting return values");
+            D!("expecting return values");
+            log::debug!(
+                "{} utpam_parse: {}; [...{}]",
+                LOG_ERR,
+                "expecting return value",
+                tok
+            );
             set_and_break!(control_array);
         }
 
@@ -124,12 +128,17 @@ pub fn utpam_parse_control(control_array: &mut [i32], mut tok: &str) {
                 if s == '=' {
                     tok = tok[1..].trim_start();
                 } else {
-                    println!("expecting '='");
+                    log::debug!("{} utpam_parse: {}; [...{}]", LOG_ERR, "expecting '='", tok);
                     set_and_break!(control_array);
                 }
             }
             None => {
-                println!("expecting action");
+                log::debug!(
+                    "{} utpam_parse: {}; [...{}]",
+                    LOG_ERR,
+                    "expecting action",
+                    tok
+                );
                 set_and_break!(control_array);
             }
         }
@@ -158,7 +167,12 @@ pub fn utpam_parse_control(control_array: &mut [i32], mut tok: &str) {
                         {
                             Some(new_act) => act = new_act,
                             None => {
-                                println!("expecting smaller jump number");
+                                log::debug!(
+                                    "{} utpam_parse: {}; [...{}]",
+                                    LOG_ERR,
+                                    "expecting smaller jump number",
+                                    tok
+                                );
                                 set_and_break!(control_array);
                             }
                         }
@@ -171,7 +185,12 @@ pub fn utpam_parse_control(control_array: &mut [i32], mut tok: &str) {
             }
 
             if act == 0 {
-                println!("expecting non-zero");
+                log::debug!(
+                    "{} utpam_parse: {}; [...{}]",
+                    LOG_ERR,
+                    "expecting non-zero",
+                    tok
+                );
                 set_and_break!(control_array);
             }
         }
@@ -191,6 +210,8 @@ pub fn utpam_mkargv(input: &str, argv: &mut Vec<String>, argc: &mut i32) -> usiz
     let len = input.len();
     let mut total_size = 0;
 
+    D!("called: {}", input);
+
     // 检查长度是否有效
     if len > 0 && len < usize::MAX / (size_of::<char>() + size_of::<String>()) {
         let mut tmp = None;
@@ -206,6 +227,7 @@ pub fn utpam_mkargv(input: &str, argv: &mut Vec<String>, argc: &mut i32) -> usiz
             *argc += 1;
 
             current = tmp;
+            D!("loop again?");
         }
 
         // 计算内存大小
@@ -213,6 +235,8 @@ pub fn utpam_mkargv(input: &str, argv: &mut Vec<String>, argc: &mut i32) -> usiz
         let argv_len = argv.len();
         total_size = total_len + argv_len * size_of::<String>();
     }
+
+    D!("exiting");
 
     total_size
 }

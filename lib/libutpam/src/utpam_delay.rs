@@ -16,7 +16,10 @@ use std::any::Any;
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-//pub type DelayFnPtr = Box<dyn Fn(i32, u32, Option<&dyn Any>) + Send + Sync>; //表示一个可以发送和同步的闭包
+#[cfg(feature = "debug")]
+use crate::common::utpam_output_debug_and_info;
+use crate::D;
+
 pub type DelayFnPtr = fn(u8, u32, Option<&dyn Any>) -> u64;
 
 #[derive(Debug, Clone)]
@@ -40,11 +43,13 @@ impl UtpamFailDelay {
 
     ///重置延迟状态
     pub fn utpam_reset_timer(&mut self) {
+        D!("setting utpamh->fail_delay.set to UtpamFalse");
         self.set = UtpamBoolean::UtpamFalse;
     }
 
     /// 启动定时器（Rust要求字段不能为空，是不是这部分内容不需要格外实现）
     pub fn utpam_start_timer(&mut self) {
+        D!("starting timer...");
         self.begin = SystemTime::now();
     }
 
@@ -59,6 +64,7 @@ impl UtpamFailDelay {
         }
         let avg = (sum / 3.0) / 1e6 - 0.5;
         let delay = base as f64 * (1.0 + avg);
+        D!("random number: avg={}, delay={}", avg, delay);
         if delay > u64::MAX as f64 {
             u64::MAX
         } else {
@@ -75,14 +81,15 @@ impl Default for UtpamFailDelay {
 
 /// 根据计算出的延迟时间，执行等待操作
 pub fn utpam_await_timer(utpamh: &mut Box<UtpamHandle>, status: u8) {
+    D!("waiting?...");
+
     let fail_delay = &mut utpamh.fail_delay;
 
     // 将当前时间转换为从 Unix 纪元开始的秒数
     let current_time = match fail_delay.begin.duration_since(UNIX_EPOCH) {
         Ok(n) => n.as_secs(),
         Err(_) => {
-            //日记记录
-            println!("Failed to get duration since Unix epoch.");
+            D!("Failed to get duration since Unix epoch");
             return;
         }
     };
@@ -103,16 +110,22 @@ pub fn utpam_await_timer(utpamh: &mut Box<UtpamHandle>, status: u8) {
             delay_fn(status, delay_u, None);
         }
     } else if status != PAM_SUCCESS && fail_delay.set.to_bool() {
+        D!("will wait {} usec", delay);
+
         //如果认证失败设置延迟
         if delay > 0 {
             thread::sleep(Duration::from_micros(delay)); //延迟dalay微秒
         }
     }
+
     fail_delay.utpam_reset_timer();
+    D!("waiting done");
 }
 
 ///记录和更新最大延迟
 pub fn utpam_fail_delay(utpamh: &mut Box<UtpamHandle>, usec: u64) -> u8 {
+    D!("setting delay to {}", usec);
+
     let fail_delay = &mut utpamh.fail_delay;
     if !fail_delay.set.to_bool() {
         fail_delay.set = UtpamBoolean::UtpamTrue;
@@ -121,6 +134,7 @@ pub fn utpam_fail_delay(utpamh: &mut Box<UtpamHandle>, usec: u64) -> u8 {
 
     //比较传入的 usec 和当前的最大延迟时间 largest
     if fail_delay.delay < usec {
+        D!("resetting fail_delay.delay");
         fail_delay.delay = usec;
     }
     PAM_SUCCESS

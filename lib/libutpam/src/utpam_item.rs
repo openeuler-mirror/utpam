@@ -8,7 +8,7 @@ use crate::common::*;
 use crate::utpam::*;
 use crate::utpam_delay::DelayFnPtr;
 use crate::utpam_syslog::*;
-use crate::{pam_syslog, utpam_overwrite_string, IF_NO_UTPAMH, UTPAM_FROM_MODULE};
+use crate::{pam_syslog, utpam_overwrite_string, D, IF_NO_UTPAMH, UTPAM_FROM_MODULE};
 use std::any::Any;
 use std::rc::Rc;
 use zeroize::Zeroize;
@@ -20,6 +20,7 @@ macro_rules! TRY_SET {
             Some(item) => {
                 match item.downcast::<$field>() {
                     Ok(data) => {
+                        D!("setting value: {:?}", data);
                         if *data != $old {
                             $old = *data;
                         }
@@ -40,6 +41,8 @@ macro_rules! TRY_SET {
 // 设置UtpamHandle结构体中的特定项:
 pub fn utpam_set_item(utpamh: &mut UtpamHandle, item_type: i8, item: Option<Box<dyn Any>>) -> u8 {
     let mut retval = PAM_SUCCESS;
+
+    D!("called.");
 
     match item_type {
         PAM_SERVICE => {
@@ -151,18 +154,23 @@ pub fn utpam_set_item(utpamh: &mut UtpamHandle, item_type: i8, item: Option<Box<
 pub fn utpam_get_item(utpamh: &UtpamHandle, item_type: i8, item: &mut Box<dyn Any>) -> u8 {
     let mut retval = PAM_SUCCESS;
 
+    D!("called.");
+
     // 根据item_type选择要返回的数据
     match item_type {
         PAM_SERVICE => {
             *item = Box::new(utpamh.service_name.clone());
         }
         PAM_USER => {
+            D!("returning user={}", utpamh.user);
             *item = Box::new(utpamh.user.clone());
         }
         PAM_USER_PROMPT => {
+            D!("returning userprompt={:?}", utpamh.prompt);
             *item = Box::new(utpamh.prompt.clone());
         }
         PAM_TTY => {
+            D!("returning tty={}", utpamh.tty);
             *item = Box::new(utpamh.tty.clone());
         }
         PAM_RUSER => {
@@ -213,6 +221,8 @@ pub fn utpam_get_user(
     prompt: &mut Option<String>,
 ) -> u8 {
     let mut use_prompt = &mut String::new();
+
+    D!("called.");
 
     //检查utpamh是否为空
     let utpamh = IF_NO_UTPAMH!(utpamh, PAM_SYSTEM_ERR);
@@ -284,6 +294,7 @@ pub fn utpam_get_user(
     }
     match retval {
         PAM_CONV_AGAIN => {
+            D!("conversation function is not ready yet");
             utpamh.former.want_user = UtpamBoolean::UtpamTrue;
             utpamh.former.prompt = Some(use_prompt.to_string());
         }
@@ -295,7 +306,7 @@ pub fn utpam_get_user(
                 }
             }
             None => {
-                println!("no response provided");
+                D!("no response provided");
                 return PAM_CONV_ERR;
             }
         },
@@ -310,5 +321,6 @@ pub fn utpam_get_user(
         );
     };
 
+    D!("completed");
     retval
 }

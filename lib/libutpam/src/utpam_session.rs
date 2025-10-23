@@ -6,15 +6,20 @@
 use crate::common::PAM_SYSTEM_ERR;
 use crate::utpam::{UtpamHandle, PAM_CALLED_FROM_MODULE, PAM_CLOSE_SESSION, PAM_OPEN_SESSION};
 use crate::utpam_dispatch::utpam_dispatch;
-use crate::{IF_NO_UTPAMH, UTPAM_FROM_MODULE};
+use crate::{D, IF_NO_UTPAMH, UTPAM_FROM_MODULE};
+
+#[cfg(feature = "debug")]
+use crate::common::utpam_output_debug_and_info;
 
 //打开会话
 pub fn utpam_open_session(utpamh: &mut Option<Box<UtpamHandle>>, flags: u32) -> u8 {
-    ////检查utpamh是否为空
+    D!("called");
+
+    //检查utpamh是否为空
     let utpamh = IF_NO_UTPAMH!(utpamh, PAM_SYSTEM_ERR);
 
     if UTPAM_FROM_MODULE!(utpamh) {
-        println!("called from module!?");
+        D!("called from module!?");
         return PAM_SYSTEM_ERR;
     }
 
@@ -24,11 +29,13 @@ pub fn utpam_open_session(utpamh: &mut Option<Box<UtpamHandle>>, flags: u32) -> 
 
 //注销或结束会话
 pub fn utpam_close_session(utpamh: &mut Option<Box<UtpamHandle>>, flags: u32) -> u8 {
-    ////检查utpamh是否为空
+    D!("called");
+
+    //检查utpamh是否为空
     let utpamh = IF_NO_UTPAMH!(utpamh, PAM_SYSTEM_ERR);
 
     if UTPAM_FROM_MODULE!(utpamh) {
-        println!("called from module!?");
+        D!("called from module!?");
         return PAM_SYSTEM_ERR;
     }
 

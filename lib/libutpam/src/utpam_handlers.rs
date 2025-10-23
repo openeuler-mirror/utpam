@@ -6,10 +6,10 @@
 #![allow(clippy::too_many_arguments)]
 
 use crate::common::*;
-use crate::pam_syslog;
 use crate::utpam::*;
 use crate::utpam_strerror::pam_strerror;
 use crate::utpam_syslog::*;
+use crate::{pam_syslog, D};
 
 use crate::utpam_dynamic::{utpam_dlopen, utpam_dlsym};
 use crate::utpam_misc::{
@@ -38,10 +38,14 @@ const DEFAULT_MODULE_PATH: &str = "/lib64/security";
 pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> u8 {
     let mut retval: u8;
 
+    D!("called.");
+
     //如果所有内容都已加载，则立即返回
     if utpamh.handlers.handlers_loaded != 0 {
         return PAM_SUCCESS;
     }
+
+    D!("initializing");
 
     if utpamh.service_name.is_empty() {
         return PAM_BAD_ITEM;
@@ -92,7 +96,7 @@ pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> u8 {
                 read_something = 1;
             }
         } else {
-            println!(
+            D!(
                 "unable to open configuration for: {:?}",
                 utpamh.service_name
             );
@@ -134,6 +138,10 @@ pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> u8 {
                     read_something = 1;
                 }
             } else {
+                D!(
+                    "unable to open configuration for : {}",
+                    UTPAM_DEFAULT_SERVICE
+                );
                 pam_syslog!(
                     &utpamh,
                     LOG_ERR,
@@ -170,6 +178,7 @@ pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> u8 {
 
     utpamh.handlers.handlers_loaded = 1;
 
+    D!("exiting");
     PAM_SUCCESS
 }
 
@@ -196,6 +205,8 @@ fn utpam_open_config_file(
         path_buf = utpamh.confdir.join(service.clone());
     }
     if path_buf.is_file() {
+        D!("opening {:?}", path_buf);
+
         let fd = OpenOptions::new().read(true).open(&path_buf);
         match fd {
             Ok(f) => {
@@ -215,6 +226,8 @@ fn utpam_open_config_file(
         let dir = PathBuf::from(dir);
         path_buf = dir.join(service.clone());
         if path_buf.exists() {
+            D!("opening {:?}", path_buf);
+
             let fd = OpenOptions::new().read(true).open(&path_buf);
             match fd {
                 Ok(f) => {
@@ -249,10 +262,12 @@ fn utpam_load_conf_file(
     let mut path: Option<PathBuf> = None;
     let mut retval: u8 = PAM_ABORT;
 
+    D!("called.");
+
     //检查是否超过了最大允许的嵌套层次
     if include_level >= PAM_SUBSTACK_MAX_LEVEL {
-        //日记记录
-        println!("maximum level of inclusions reached");
+        D!("maximum level of inclusions reached");
+        pam_syslog!(&utpamh, LOG_ERR, "maximum level of inclusions reached",);
         return PAM_ABORT;
     }
 
@@ -260,8 +275,8 @@ fn utpam_load_conf_file(
     let config_name = match config_name {
         Some(name) => name,
         None => {
-            //日记记录
-            println!("no config file supplied");
+            D!("no config file supplied");
+            pam_syslog!(&utpamh, LOG_ERR, "({:?}) no config name supplied", service);
             return PAM_ABORT;
         }
     };
@@ -279,15 +294,26 @@ fn utpam_load_conf_file(
             not_other,
         );
         if retval != PAM_SUCCESS {
-            //日记记录
-            println!("utpam_load_conf_file: error reading {:?}", path)
+            let err = pam_strerror(utpamh, retval);
+            pam_syslog!(
+                &utpamh,
+                LOG_ERR,
+                "utpam_load_conf_file: error reading {:?}: {}",
+                path,
+                err
+            );
         }
     } else {
-        //日记记录
-        println!(
+        D!(
             "utpam_load_conf_file: unable to open config for {}",
-            config_name.clone()
-        )
+            config_name
+        );
+        pam_syslog!(
+            &utpamh,
+            LOG_ERR,
+            "utpam_load_conf_file: unable to open config for {}",
+            config_name
+        );
     }
     retval
 }
@@ -320,6 +346,7 @@ fn utpam_parse_config_file(
         let mut argc = 0;
         let mut argv: Vec<String> = vec![];
 
+        D!("LINE: {:?}", buf);
         //判断是否提供服务名称
         let this_service = match known_service {
             Some(ref s) => {
@@ -347,6 +374,8 @@ fn utpam_parse_config_file(
             let mut pam_include = 0;
             let mut substack = 0;
 
+            D!("Found PAM config entry for: {}", this_service);
+
             match utpam_tokenize(None, &mut buf) {
                 Some(mut tok) => {
                     if tok.starts_with('-') {
@@ -362,6 +391,7 @@ fn utpam_parse_config_file(
                     } else if tok.eq_ignore_ascii_case("password") {
                         module_type = PAM_T_PASS;
                     } else {
+                        D!("bad module type: {}", tok);
                         pam_syslog!(
                             &utpamh,
                             LOG_ERR,
@@ -379,6 +409,7 @@ fn utpam_parse_config_file(
                     }
                 }
                 None => {
+                    D!("empty module type for {}", this_service);
                     pam_syslog!(&utpamh, LOG_ERR, "({}) empty module type", this_service);
                     module_type = if requested_module_type != PAM_T_ANY {
                         requested_module_type
@@ -389,6 +420,13 @@ fn utpam_parse_config_file(
                     handler_type = PAM_HT_MUST_FAIL;
                 }
             };
+
+            D!(
+                "Using config entry: {:?}, handler_type: {}",
+                buf,
+                handler_type
+            );
+
             if requested_module_type != PAM_T_ANY && module_type != requested_module_type {
                 //日志记录
                 continue;
@@ -404,45 +442,53 @@ fn utpam_parse_config_file(
                     //将tok转换为小写字母后进行匹配
                     match tok.to_ascii_lowercase().as_str() {
                         "required" => {
+                            D!("*PAM_F_REQUIRED*");
                             actions[PAM_SUCCESS as usize] = PAM_ACTION_OK;
                             actions[PAM_NEW_AUTHTOK_REQD as usize] = PAM_ACTION_OK;
                             actions[PAM_IGNORE as usize] = PAM_ACTION_IGNORE;
                             utpam_set_default_control(&mut actions, PAM_ACTION_BAD);
                         }
                         "requisite" => {
+                            D!("*PAM_F_REQUISITE*");
                             actions[PAM_SUCCESS as usize] = PAM_ACTION_OK;
                             actions[PAM_NEW_AUTHTOK_REQD as usize] = PAM_ACTION_OK;
                             actions[PAM_IGNORE as usize] = PAM_ACTION_IGNORE;
                             utpam_set_default_control(&mut actions, PAM_ACTION_DIE);
                         }
                         "optional" => {
+                            D!("*PAM_F_OPTIONAL*");
                             actions[PAM_SUCCESS as usize] = PAM_ACTION_OK;
                             actions[PAM_NEW_AUTHTOK_REQD as usize] = PAM_ACTION_OK;
                             actions[PAM_IGNORE as usize] = PAM_ACTION_IGNORE;
                             utpam_set_default_control(&mut actions, PAM_ACTION_IGNORE);
                         }
                         "sufficient" => {
+                            D!("*PAM_F_SUFFICIENT*");
                             actions[PAM_SUCCESS as usize] = PAM_ACTION_DONE;
                             actions[PAM_NEW_AUTHTOK_REQD as usize] = PAM_ACTION_DONE;
                             actions[PAM_IGNORE as usize] = PAM_ACTION_IGNORE;
                             utpam_set_default_control(&mut actions, PAM_ACTION_IGNORE);
                         }
                         "include" => {
+                            D!("*PAM_F_INCLUDE*");
                             pam_include = 1;
                             substack = 0;
                         }
                         "substack" => {
+                            D!("*PAM_F_SUBSTACK*");
                             pam_include = 1;
                             substack = 1;
                         }
                         _ => {
-                            println!("will need to parse {}", tok);
+                            D!("will need to parse {}", tok);
                             utpam_parse_control(&mut actions, &tok);
                             utpam_set_default_control(&mut actions, PAM_ACTION_BAD);
                         }
                     }
                 }
                 None => {
+                    /* no module name given */
+                    D!("no control flag supplied");
                     pam_syslog!(
                         &utpamh,
                         LOG_ERR,
@@ -472,6 +518,7 @@ fn utpam_parse_config_file(
                             );
                             if res != PAM_SUCCESS {
                                 pam_syslog!(&utpamh, LOG_ERR, "error adding substack {}", tok);
+                                D!("failed to load module - aborting");
                                 return PAM_ABORT;
                             }
                         }
@@ -495,9 +542,12 @@ fn utpam_parse_config_file(
                         //nexttok = None;
                     } else {
                         mod_path = Some(tok);
+                        D!("mod_path = {:?}", mod_path);
                     }
                 }
                 None => {
+                    /* no module name given */
+                    D!("no module name supplied");
                     pam_syslog!(
                         &utpamh,
                         LOG_ERR,
@@ -511,6 +561,7 @@ fn utpam_parse_config_file(
 
             if let Some(buf) = buf {
                 if utpam_mkargv(buf, &mut argv, &mut argc) == 0 {
+                    D!("failed to allocate argument vector");
                     pam_syslog!(
                         &utpamh,
                         LOG_ERR,
@@ -539,6 +590,7 @@ fn utpam_parse_config_file(
                     None => "unknown file".to_string(),
                 };
                 pam_syslog!(&utpamh, LOG_ERR, "error loading {}", mod_path);
+                D!("failed to load module - aborting");
                 return PAM_ABORT;
             }
         }
@@ -583,6 +635,8 @@ fn utpam_load_module(
 ) -> Option<&LoadedModule> {
     let mods = utpamh;
 
+    D!("loading module {}", mod_path);
+
     //遍历模块列表，检查是否存在mod_path模块。
     let x = mods.iter().position(|m| m.name == mod_path);
 
@@ -601,12 +655,11 @@ fn utpam_load_module(
                 dl_handle: None,
             };
 
+            D!("utpam_dlopen({})", mod_path);
             //加载模块
             match utpam_dlopen(mod_path.clone().to_string()) {
                 Ok(handle) => newmod.dl_handle = Some(handle),
-                Err(e) => {
-                    println!("Error loading module: {}", e);
-
+                Err(_) => {
                     //处理带有占位符的路径字符串，并根据具体的架构替换占位符以加载正确的动态库
                     let isa_pos = mod_path.find("$ISA");
                     if isa_pos.is_some() {
@@ -620,6 +673,7 @@ fn utpam_load_module(
                         //重新加载模块
                         match utpam_dlopen(real_mod_path) {
                             Ok(handle) => {
+                                D!("module added successfully");
                                 newmod.moule_type = PAM_MT_DYNAMIC_MOD;
                                 newmod.dl_handle = Some(handle);
                             }
@@ -628,13 +682,19 @@ fn utpam_load_module(
                                 newmod.moule_type = PAM_MT_FAULTY_MOD;
 
                                 if handler_type != PAM_HT_SILENT_MODULE {
-                                    println!("{}", e);
+                                    D!("utpam_dlopen({}) failed", mod_path);
+                                    log::debug!(
+                                        "{} {} {} {}",
+                                        LOG_ERR,
+                                        "error loading: ",
+                                        mod_path,
+                                        e
+                                    );
                                 }
                             }
                         };
-                    } else {
-                        println!("{}", e);
                     }
+                    D!("Error loading module");
                 }
             };
 
@@ -660,6 +720,14 @@ fn utpam_add_handler(
     argc: i32,
     argv: &[String],
 ) -> u8 {
+    D!("called.");
+    D!(
+        "adding module_type {}, handler_type {}, module {:?}",
+        module_type,
+        handler_type,
+        mod_path
+    );
+
     let mut load_module = None;
 
     //let mut mod_type: i32 = PAM_MT_FAULTY_MOD;
@@ -725,10 +793,15 @@ fn utpam_add_handler(
         ),
         PAM_T_ACCT => (&mut the_handlers.acct_mgmt, "utpam_sm_acct_mgmt", None, ""),
         PAM_T_PASS => (&mut the_handlers.chauthtok, "utpam_sm_chauthtok", None, ""),
-        _ => return PAM_ABORT,
+        _ => {
+            /* Illegal module type */
+            D!("illegal module type {}", module_type);
+            return PAM_ABORT;
+        }
     };
 
     if mod_type != PAM_MT_DYNAMIC_MOD && mod_type != PAM_MT_FAULTY_MOD {
+        D!("illegal module library type; {}", mod_type);
         pam_syslog!(
             &utpamh,
             LOG_ERR,
@@ -806,6 +879,8 @@ fn utpam_add_handler(
             }
         }
     }
+
+    D!("returning successfully");
 
     PAM_SUCCESS
 }

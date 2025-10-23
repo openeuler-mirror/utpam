@@ -7,7 +7,7 @@ use crate::common::*;
 use crate::utpam::{UtpamHandle, PAM_ENV_CHUNK};
 use crate::utpam_misc::utpam_strdup;
 use crate::utpam_syslog::*;
-use crate::{pam_syslog, IF_NO_UTPAMH};
+use crate::{pam_syslog, D, IF_NO_UTPAMH};
 
 #[derive(Debug)]
 pub struct UtpamEnviron {
@@ -18,6 +18,8 @@ pub struct UtpamEnviron {
 
 /// 创建环境变量
 pub fn utpam_make_env(env: &mut Option<UtpamEnviron>) -> u8 {
+    D!("called.");
+
     *env = Some(UtpamEnviron {
         entries: PAM_ENV_CHUNK,
         requested: 1,
@@ -29,10 +31,13 @@ pub fn utpam_make_env(env: &mut Option<UtpamEnviron>) -> u8 {
 
 /// 销毁环境变量
 pub fn utpam_drop_env(utpamh: &mut Box<UtpamHandle>) {
+    D!("called.");
+
     match utpamh.env {
         Some(ref mut env) => {
             // 清空环境变量列表
             for list in env.list.iter_mut() {
+                D!("dropping {}", list);
                 list.clear()
             }
 
@@ -40,7 +45,9 @@ pub fn utpam_drop_env(utpamh: &mut Box<UtpamHandle>) {
             env.requested = 0;
             env.list.clear(); //清空 Vec 本身
         }
-        None => println!("no environment present in utpamh?"),
+        None => {
+            D!("no environment present in utpamh?");
+        }
     }
 }
 
@@ -63,6 +70,8 @@ fn utpam_search_env(env: &UtpamEnviron, name_value: &str, length: usize) -> i32 
 
 /// 添加、替换或删除环境变量
 pub fn utpam_putenv(utpamh: &mut Option<Box<UtpamHandle>>, name_value: &str) -> u8 {
+    D!("called.");
+
     let utpamh = IF_NO_UTPAMH!(utpamh, PAM_ABORT);
 
     if name_value.is_empty() {
@@ -85,6 +94,8 @@ pub fn utpam_putenv(utpamh: &mut Option<Box<UtpamHandle>>, name_value: &str) -> 
 
             if let Some('=') = name_value.chars().nth(l2eq) {
                 if item == -1 {
+                    D!("adding item: {}", name_value);
+
                     //添加一个新的环境变量
                     env.requested += 1;
                     env.list.push(String::from(name_value));
@@ -117,6 +128,8 @@ pub fn utpam_putenv(utpamh: &mut Option<Box<UtpamHandle>>, name_value: &str) -> 
 }
 
 pub fn utpam_getenv(utpamh: &mut Option<Box<UtpamHandle>>, name: &str) -> Option<String> {
+    D!("called.");
+
     let utpamh = match utpamh {
         Some(ref mut value) => value,
         None => return None,
@@ -139,16 +152,20 @@ pub fn utpam_getenv(utpamh: &mut Option<Box<UtpamHandle>>, name: &str) -> Option
 
     let item = utpam_search_env(env, name, name.len());
     if item != -1 {
+        D!("env-item: {}, found", name);
+
         let env_str = &env.list[item as usize];
         let value_start = name.len() + 1; // 跳过名称部分和等号
         Some((env_str[value_start..]).to_string())
     } else {
-        println!("env-item: {}, not found", name);
+        D!("env-item: {}, not found", name);
         None
     }
 }
 
 fn copy_env(utpamh: &mut Box<UtpamHandle>) -> Option<Vec<String>> {
+    D!("now get some memory for dump");
+
     // 创建一个新的环境变量列表
     let mut dump;
 
@@ -159,12 +176,14 @@ fn copy_env(utpamh: &mut Box<UtpamHandle>) -> Option<Vec<String>> {
             dump = Vec::with_capacity(i);
 
             for j in (0..i).rev() {
+                D!("env[{}]={}", j, env_list[j]);
+
                 if let Some(env_str) = env_list.get(j) {
                     // 尝试复制环境变量
                     if let Some(dup_str) = utpam_strdup(env_str) {
                         dump.push(dup_str);
+                        D!("dump[{}]={}", j, dump[j]);
                     } else {
-                        // 内存分配失败，返回 None
                         return None;
                     }
                 }
@@ -181,6 +200,8 @@ fn copy_env(utpamh: &mut Box<UtpamHandle>) -> Option<Vec<String>> {
 }
 
 pub fn utpam_getenvlist(utpamh: &mut Option<Box<UtpamHandle>>) -> Option<Vec<String>> {
+    D!("called.");
+
     //检查utpamh是否为空
     let utpamh = match utpamh {
         Some(ref mut value) => value,

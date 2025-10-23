@@ -12,8 +12,7 @@ use crate::utpam::{UtpamHandle, PAM_CALLED_FROM_APP};
 use crate::utpam_env::utpam_make_env;
 use crate::utpam_handlers::*;
 use crate::utpam_syslog::*;
-use crate::D;
-use crate::{pam_syslog, UTPAM_TO_APP};
+use crate::{pam_syslog, D, UTPAM_TO_APP};
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -104,5 +103,8 @@ fn utpam_start_internal(
 
     //返回初始化好的UtpamHandle结构体
     *utpamh = Some(pamh);
+
+    D!("exiting successfully");
+
     PAM_SUCCESS
 }

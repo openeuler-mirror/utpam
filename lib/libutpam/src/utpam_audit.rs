@@ -14,7 +14,7 @@ use std::io::Error;
 fn _pam_audit_open(utpamh: &UtpamHandle) -> i32 {
     // rust暂未相关第三方库,暂不重构
     // let audit_fd = audit_open(utpamh);
-    
+
     let audit_fd = 0;
     if audit_fd < 0 {
         let last_error = Error::last_os_error();

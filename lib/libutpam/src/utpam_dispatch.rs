@@ -11,8 +11,11 @@ use crate::utpam_handlers::utpam_init_handlers;
 use crate::utpam_item::utpam_get_item;
 
 use crate::utpam_syslog::*;
-use crate::{pam_syslog, PAM_ACTION_IS_JUMP, UTPAM_FROM_MODULE, UTPAM_TO_APP, UTPAM_TO_MODULE};
+use crate::{pam_syslog, D, PAM_ACTION_IS_JUMP, UTPAM_FROM_MODULE, UTPAM_TO_APP, UTPAM_TO_MODULE};
 use std::any::Any;
+
+#[cfg(feature = "debug")]
+use crate::utpam_strerror::pam_strerror;
 
 const PAM_UNDEF: i32 = 0;
 const PAM_POSITIVE: i32 = 1;
@@ -88,29 +91,29 @@ fn utpam_dispatch_aux(
 
         // 处理模块
         if h.handler_type == PAM_HT_MUST_FAIL {
-            println!("module poorly listed in PAM config; forcing failure");
+            D!("module poorly listed in PAM config; forcing failure");
             retval = PAM_MUST_FAIL_CODE; //强制失败
         } else if h.handler_type == PAM_HT_SUBSTACK {
-            println!("skipping substack handler");
+            D!("skipping substack handler");
             //depth += 1;  ////跳过子堆栈
             *handlers = h.next.take();
             continue;
         } else {
             match h.func {
                 Some(func) => {
-                    //println!("passing control to module...");
+                    D!("passing control to module...");
                     utpamh.mod_name = h.mod_name.clone();
                     utpamh.mod_argc = h.argc;
                     utpamh.mod_argv = h.argv.clone();
 
                     retval = func(utpamh, flags, Some(h.argc), Some(h.argv.clone()));
-                    println!("retval: {:?}", retval);
                     utpamh.mod_name = String::default();
                     utpamh.mod_argc = 0;
                     utpamh.mod_argv = vec![];
+                    D!("module returned: {}", pam_strerror(utpamh, retval));
                 }
                 None => {
-                    //println!("module function is not defined, indicating failure");
+                    D!("module function is not defined, indicating failure");
                     retval = PAM_MODULE_UNKNOWN; //模块函数未定义，失败
                 }
             }
@@ -122,6 +125,7 @@ fn utpam_dispatch_aux(
             utpamh.former.depth = depth;
             utpamh.former.substates = substates.clone();
 
+            D!("module {} returned PAM_INCOMPLETE", depth);
             return retval;
         }
         let mut cached_retval;
@@ -131,7 +135,7 @@ fn utpam_dispatch_aux(
             cached_retval = h.get_cached_retval();
 
             if cached_retval == _PAM_INVALID_RETVAL {
-                println!(
+                D!(
                     "use_cached_chain is set to {}, but cached_retval == _PAM_INVALID_RETVAL",
                     use_cached_chain
                 );
@@ -140,7 +144,7 @@ fn utpam_dispatch_aux(
                     //h.set_cached_retval(retval);
                     cached_retval = retval as i8;
                 } else {
-                    println!("BUG in libpam - chain is required to be frozen but isn't");
+                    D!("BUG in libutpam - chain is required to be frozen but isn't");
                 }
             }
         } else {
@@ -154,9 +158,13 @@ fn utpam_dispatch_aux(
         } else {
             action = h.actions[cached_retval as usize];
         }
-        println!(
+
+        D!(
             "use_cached_chain={} action={} cached_retval={} retval={}",
-            use_cached_chain, action, cached_retval, retval
+            use_cached_chain,
+            action,
+            cached_retval,
+            retval
         );
 
         match action {
@@ -226,6 +234,7 @@ fn utpam_dispatch_aux(
     }
 
     if status == PAM_SUCCESS && impression != PAM_POSITIVE {
+        D!("caught on sanity check -- this is probably a config error!");
         status = PAM_MUST_FAIL_CODE;
     }
 
@@ -247,6 +256,7 @@ pub fn utpam_dispatch(utpamh: &mut Box<UtpamHandle>, flags: u32, choice: u8) -> 
     let resumed;
 
     if UTPAM_FROM_MODULE!(utpamh) {
+        D!("called from a module!?");
         return retval;
     }
 
@@ -350,7 +360,7 @@ pub fn utpam_dispatch(utpamh: &mut Box<UtpamHandle>, flags: u32, choice: u8) -> 
     // 等待应用程序处理完后重新开始
     if retval == PAM_INCOMPLETE {
         // 记录需要在下次调用时恢复的状态。
-        println!("module [%s] returned PAM_INCOMPLETE");
+        D!("module {} returned PAM_INCOMPLETE", utpamh.mod_name);
         utpamh.former.choice = choice;
     } else {
         //清除上次调用的状态

@@ -19,7 +19,8 @@
     clippy::redundant_static_lifetimes,
     clippy::manual_unwrap_or_default,
     clippy::single_match,
-    clippy::ptr_arg
+    clippy::ptr_arg,
+    clippy::unused_unit
 )]
 
 use std::any::Any;
@@ -28,17 +29,26 @@ use std::io::Write;
 use std::rc::Rc;
 use utpam::common::*;
 use utpam::common::{UtpamMessage, UtpamResponse};
+use utpam::utpam_overwrite_string;
 
 //fn read_string
+use nix::sys::termios::LocalFlags;
 use nix::sys::termios::Termios;
+//use nix::sys::termios::{self, Termios, ECHO};
 use nix::unistd::isatty;
+use std::io::Read;
 use std::os::unix::io::RawFd;
+use zeroize::Zeroize;
 pub const CONV_ECHO_OFF: u8 = 0;
 pub const CONV_ECHO_ON: u8 = 1;
 //use nix::sys::termios::NCCS;
+use nix::sys::termios::SetArg::TCSAFLUSH;
 pub const NCCS: usize = 32;
 pub const PAM_MISC_CONV_BUFSIZE: usize = 4096;
 pub const STDIN_FILENO: u8 = 0;
+pub const ECHO: u8 = 10;
+pub const INPUTSIZE: i32 = 4096;
+use std::sync::MutexGuard;
 
 use nix::errno::Errno;
 use nix::sys::termios;
@@ -48,18 +58,24 @@ pub struct __sigset_t {
 }
 
 #[no_mangle]
-fn read_string(echo: u8, prompt: String, retstr: &Vec<String>) -> i8 {
+fn read_string(echo: u8, prompt: String, retstr: &mut Vec<String>) -> i8 {
     let mut fd = RawFd::from(0);
-    let mut term_before = termios::tcgetattr(fd);
-    let mut term_tmp: nix::sys::termios::Termios;
+    let mut fdd = RawFd::from(0);
+    let mut term_before = match termios::tcgetattr(fd) {
+        Ok(termios) => termios,
+        Err(_) => return -1,
+    };
+    let mut term_tmp = match termios::tcgetattr(fdd) {
+        Ok(termios) => termios,
+        Err(_) => return -1,
+    };
 
-    let line: [u8; PAM_MISC_CONV_BUFSIZE] = [0; PAM_MISC_CONV_BUFSIZE];
+    let mut line: [u8; PAM_MISC_CONV_BUFSIZE] = [0; PAM_MISC_CONV_BUFSIZE];
     //struct sigaction old_sig;//c中sigaction目前用nix实现，相关结构体定义，暂时不定义相关变量；
     let mut delay: i32 = 0;
     let mut nc: i32 = -1;
     let mut have_term: i8 = 0;
-    let mut oset = __sigset_t { val: [0; 16] };
-    let mut nset = __sigset_t { val: [0; 16] };
+
     //D(("called with echo='%s', prompt='%s'.", echo ? "ON":"OFF" , prompt));
 
     let is_term = isatty(RawFd::from(0)).unwrap_or(false);
@@ -67,7 +83,25 @@ fn read_string(echo: u8, prompt: String, retstr: &Vec<String>) -> i8 {
         match termios::tcgetattr(STDIN_FILENO as i32) {
             Ok(_) => {
                 // 如果成功，继续执行其他操作
-                let mut term_tmp = term_before.clone();
+                let mut term_tmp = term_before.clone(); //memcpy...
+                                                        //let echo_bool_f = echo != 0;
+                if echo == 0 {
+                    let echo_mask = LocalFlags::from_bits(ECHO as u32).unwrap();
+                    term_tmp.local_flags &= !(echo_mask);
+                    //term_tmp.local_flags &=!ECHO;
+                    //由于ECHO使用的termios中变量，类型不一致，所以需要使用上面方法(localflags::from_bits)转一下类型；
+                }
+                have_term = 1;
+
+                // 初始化信号集 nset
+                let mut nset = signal::SigSet::empty();
+
+                // 将 SIGTSTP 添加到 nset
+                //signal::sigaddset(&mut nset, signal::SIGTSTP);
+                nset.add(signal::SIGTSTP);
+
+                // 阻塞 nset 中的信号，并将当前的信号掩码保存到 oset 中
+                let mut oset = signal::SigSet::empty();
             }
             Err(_) => {
                 //D(("<error: failed to get terminal settings>"));
@@ -76,13 +110,138 @@ fn read_string(echo: u8, prompt: String, retstr: &Vec<String>) -> i8 {
             }
         }
     } else {
-        let echo_bool = echo != 0;
-        if !echo_bool {
+        //let echo_bool = echo != 0;
+        if echo == 0 {
             //D(("<warning: cannot turn echo off>"));
         }
     }
 
-    0
+    delay = utget_delay();
+
+    'cleanexit: loop {
+        while delay >= 0 {
+            if have_term != 0 {
+                termios::tcsetattr(STDIN_FILENO.into(), TCSAFLUSH, &term_tmp);
+            }
+            eprintln!("{}", prompt);
+
+            if delay > 0 && (set_alarm(delay) != 0) {
+                //D(("<failed to set alarm>"))
+                break;
+            } else {
+                if have_term != 0 {
+                    let stdin = io::stdin();
+                    //nc = stdin.lock().read(&mut line[0..4095]);
+                    match stdin.lock().read(&mut line[0..4095]) {
+                        Ok(bytes_read) => {
+                            nc = bytes_read as i32;
+                        }
+                        Err(_) => {
+                            println!("Failed to read from stdin");
+                        }
+                    }
+                } else {
+                    nc = 0;
+                    while nc < ((INPUTSIZE - 1) as isize).try_into().unwrap()
+                        && line[nc as usize] != b'\n'
+                    {
+                        let mut rv: i32 = 0;
+                        let stdin_1 = io::stdin();
+                        match stdin_1.lock().read(&mut line[0..1]) {
+                            Ok(bytes_read) => {
+                                rv = bytes_read as i32;
+                                if rv != 1 {
+                                    if rv < 0 {
+                                        //pam_overwrite_n(line,(unsigned int) nc)............
+                                        utpam_overwrite_string!(line);
+                                        nc = rv;
+                                    }
+                                    break;
+                                }
+                            }
+                            Err(_) => {
+                                println!("Failed to read from stdin");
+                            }
+                        }
+                        nc += 1;
+                    }
+                } //line264 break
+
+                if have_term != 0 {
+                    termios::tcsetattr(STDIN_FILENO.into(), TCSAFLUSH, &term_tmp);
+                    //let echo_1 = echo != 0;
+                    unsafe {
+                        if echo == 0 || expired != 0 {
+                            eprintln!();
+                        }
+                    } //unsafe
+                }
+
+                if delay > 0 {
+                    reset_alarm();
+                }
+
+                if unsafe { expired != 0 } {
+                    delay = utget_delay();
+                } else if nc > 0 {
+                    //D(("we got some user input"));
+                    if line[nc as usize - 1] == b'\n' {
+                        nc -= 1;
+                        line[nc as usize] = b'\0';
+                    } else {
+                        if echo != 0 {
+                            eprintln!();
+                        }
+                        line[nc as usize] = b'\0';
+                    }
+                    for s in &line {
+                        //strdup;复制字符串至retstr；
+                        retstr.push(s.to_string());
+                    }
+                    //pam_overwrite_array(line);
+                    utpam_overwrite_string!(line);
+                    if (*retstr).is_empty() {
+                        //D(("no memory for response string"));
+                        nc -= 1;
+                    }
+
+                    break 'cleanexit;
+                } else if nc == 0 {
+                    //295
+                    //D(("user did not want to type anything"))
+                    //(*retstr) = NULL ;生命周期
+                    if echo != 0 {
+                        eprintln!();
+                    }
+                    break 'cleanexit;
+                } else if nc == -1 {
+                    //303
+                    //D(("user did not want to type anything"))
+                    if echo != 0 {
+                        eprintln!();
+                    }
+                    //(*retstr) = NULL ;
+                    break 'cleanexit;
+                }
+            }
+        } //end of while
+
+        //D(("the timer appears to have expired"))
+        //*retstr = NULL; 退出程序会自动释放内存
+
+        //pam_overwrite_array(line);
+        utpam_overwrite_string!(line);
+
+        break 'cleanexit;
+    } //end of loop cleanexit;
+
+    //cleanexit
+    if have_term != 0 {
+        //signal::sigprocmask(signal::SigmaskHow::SIG_SETMASK,&oset,None);
+        termios::tcsetattr(STDIN_FILENO.into(), TCSAFLUSH, &term_before);
+    }
+    //return nc as i8;
+    nc as i8 //cargo-clippy
 }
 
 //delete bin
@@ -95,12 +254,17 @@ fn swap_bytes(mut num: u32) -> u32 {
     num
 }
 
-//此函数主要是作为函数指针所指的函数，原c的第二个参数为裸指针，此处为引用，因为传入裸指针会导致函数中判断是否空及解构时存在问题，功能是释放二进制数据；
+//此函数主要是作为函数指针所指的函数，原c的第二个参数为裸指针，此处为引用，
+//因为传入裸指针会导致函数中判断是否空及解构时存在问题，功能是释放二进制数据；
 //原c仅仅一行PAM_BP_RENEW();
+//-------------------宏展开，可能需要再仔细确认一下重构后内容；
 #[no_mangle]
-fn pam_misc_conv_delete_binary(appdata: Option<Box<dyn Any>>, delete_me: &mut pamc_bp_t) {
+fn pam_misc_conv_delete_binary(
+    appdata: Option<Box<dyn Any>>,
+    mut delete_me: Option<Box<MyStruct>>,
+) -> () {
     //PAM_BP_RENEW(delete_me,0,0);
-    if let Some(ref mut inner) = *delete_me {
+    if let Some(ref mut inner) = delete_me {
         let swapped = swap_bytes(inner.length);
         //memset(delete_me,0,swapped)
         //返回的字节swapped作为memset第三个参数，但是memset在rust中可以利用rust覆盖；
@@ -203,6 +367,11 @@ type pamc_bp_t = Option<Box<MyStruct>>;
 type pam_binary_handler_fn_t = fn(appdata: Option<Box<dyn Any>>, prompt_p: *mut pamc_bp_t) -> i32;
 static pam_binary_handler_fn: Option<pam_binary_handler_fn_t> = None;
 
+type pam_binary_handler_free_t =
+    fn(appdata: Option<Box<dyn Any>>, prompt_p: Option<Box<MyStruct>>) -> ();
+static pam_binary_handler_free: Option<pam_binary_handler_free_t> =
+    Some(pam_misc_conv_delete_binary);
+
 //函数大致功能：处理pam消息的交互，主要检查消息数量(num_msg)是否有效，遍历消息并处理。
 //目前未完成两块内容，一是调用函数read_string,二是"///////"部分，两个宏展开的内容没完成。
 
@@ -220,17 +389,22 @@ pub fn misc_conv(
         return PAM_CONV_ERR;
     }
 
-    println!("allocating empty response structure array."); //debug
+    //D(allocating empty response structure array)
 
     let mut reply: Vec<UtpamResponse> = Vec::with_capacity(num_msg);
     for _ in 0..num_msg {
+        //reply=calloc(num_msg)
         reply.push(UtpamResponse {
             resp: Vec::new(),
             resp_retcode: 0,
         });
     }
+    if reply.is_empty() {
+        //D(no memory for responses)
+        return PAM_CONV_ERR;
+    }
 
-    println!("entering conversation function."); //debug
+    //D(entering conversation function)
 
     'failed_conversation: loop {
         loop {
@@ -243,26 +417,24 @@ pub fn misc_conv(
 
             match msgm[count].msg_style {
                 PAM_PROMPT_ECHO_OFF => {
-                    nc = read_string(CONV_ECHO_OFF, msgm[count].msg.clone(), &string);
+                    nc = read_string(CONV_ECHO_OFF, msgm[count].msg.clone(), &mut string);
                     if nc < 0 {
                         break 'failed_conversation;
                     }
                 }
                 PAM_PROMPT_ECHO_ON => {
-                    //nc = read_string(CONV_ECHO_ON,msgm[count].msg,&string);
+                    nc = read_string(CONV_ECHO_ON, msgm[count].msg.clone(), &mut string);
                     if nc < 0 {
                         break 'failed_conversation;
                     }
                 }
                 PAM_ERROR_MSG => {
-                    //let res = write!(io::stderr(),"{:?}\n",msgm[count].msg);
                     let res = writeln!(io::stderr(), "{:?}", msgm[count].msg);
                     if res.is_err() {
                         break 'failed_conversation;
                     }
                 }
                 PAM_TEXT_INFO => {
-                    //let res = write!(io::stdout(),"{:?}\n",msgm[count].msg);
                     let res = writeln!(io::stdout(), "{:?}", msgm[count].msg);
                     if res.is_err() {
                         break 'failed_conversation;
@@ -273,12 +445,10 @@ pub fn misc_conv(
                     if msgm[count].msg.is_empty() || pam_binary_handler_fn.is_none() {
                         break 'failed_conversation;
                     }
-                    /////////////
-                    //if let Some(handler) = pam_binary_handler_fn {
-                    //    if handler(appdata_ptr,&mut binary_prompt) != PAM_SUCCESS || binary_prompt.is_none() {
-                    //       break 'failed_conversation;
-                    //    }
-                    //}
+
+                    //--------------------未完成的宏,只实现了部分(PAM_BP_RENEW)
+                    //PAM_BP_RENEW(&binary_prompt,PAM_BP_RCONTROL(msgm[count]->msg),PAM_BP_LENGTH(msgm[count]->msg));
+                    //PAM_BP_FILL(binary_prompt, 0, PAM_BP_LENGTH(msgm[count]->msg),PAM_BP_RDATA(msgm[count]->msg));
                     if let Some(boxed_mystruct) = binary_prompt {
                         let mystruct = *boxed_mystruct;
                         string.push(mystruct.length.to_string());
@@ -302,11 +472,7 @@ pub fn misc_conv(
 
             if !string.is_empty() {
                 reply[count].resp_retcode = 0;
-                //reply[count].resp = string; remove
                 reply[count].resp = string.clone();
-                //if let Some(s) = string {   3 remove
-                //    reply[count].resp.push(s);
-                //}
                 string.clear();
             }
             count += 1;
@@ -317,7 +483,7 @@ pub fn misc_conv(
         return PAM_SUCCESS;
     } //end of goto,failed_conversation
 
-    println!("the conversation failed"); //debug
+    //D(the conversation failed);
 
     if !reply.is_empty() {
         count = 0;
@@ -342,7 +508,7 @@ pub fn misc_conv(
                     //pam_binary_handler_free(appdata_ptr,but_)ptr)
                 }
                 PAM_ERROR_MSG | PAM_TEXT_INFO => {
-                    //reply[count].resp.clear(); rust会自动回收内存
+                    //free reply[count].resp.clear(); rust会自动回收内存
                 }
                 _ => {}
             }
@@ -386,14 +552,12 @@ pub fn utget_delay() -> i32 {
     let now = since_epoch.as_secs();
 
     if pam_misc_conv_die_time != 0 && now >= pam_misc_conv_die_time {
-        //write!(io::stderr(),"{:?}\n",pam_misc_conv_die_line);
         writeln!(io::stderr(), "{:?}", pam_misc_conv_die_line);
         pam_misc_conv_died = 1;
         return -1;
     }
 
     if pam_misc_conv_warn_time != 0 && now >= pam_misc_conv_warn_time {
-        //write!(io::stderr(),"{:?}\n",pam_misc_conv_warn_line);
         writeln!(io::stderr(), "{:?}", pam_misc_conv_warn_line);
         pam_misc_conv_warn_time = 0;
         if pam_misc_conv_die_time != 0 {

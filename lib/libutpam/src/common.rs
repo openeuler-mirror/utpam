@@ -211,25 +211,38 @@ impl UtpamXAuthData {
     }
 }
 
-/// 输出调试信息到日志文件或标准错误流
 #[cfg(feature = "debug")]
-pub fn utpam_output_debug_and_info(
-    file: &str,
-    fn_name: &str,
-    line: u32,
-    args: std::fmt::Arguments,
-) {
+/// 输出调试信息上下文
+pub fn utpam_output_debug_info(file: &str, fn_name: &str, line: u32) {
     use std::fs::OpenOptions;
     use std::io::Write;
 
     match OpenOptions::new().append(true).open(PAM_LOG_FILE) {
         Ok(mut log_file) => {
-            if let Err(e) = writeln!(log_file, "[{}:{}({})] {}", file, fn_name, line, args) {
+            if let Err(e) = writeln!(log_file, "[{}:{}({})]", file, fn_name, line) {
                 eprintln!("Failed to write to log file: {}", e);
             }
         }
         Err(_) => {
-            println!("[{}:{}({})] {}", file, fn_name, line, args);
+            print!("[{}:{}({})]", file, fn_name, line);
+        }
+    };
+}
+
+#[cfg(feature = "debug")]
+/// 输出调试信息内容
+pub fn utpam_output_debug(args: std::fmt::Arguments) {
+    use std::fs::OpenOptions;
+    use std::io::Write;
+
+    match OpenOptions::new().append(true).open(PAM_LOG_FILE) {
+        Ok(mut log_file) => {
+            if let Err(e) = writeln!(log_file, "{}", args) {
+                eprintln!("Failed to write to log file: {}", e);
+            }
+        }
+        Err(_) => {
+            println!("{}", args);
         }
     };
 }
@@ -239,7 +252,8 @@ macro_rules! D {
     ($($msg:tt)*)  => {
         #[cfg(feature = "debug")]
         {
-            utpam_output_debug_and_info(file!(), stdext::function_name!(), line!(), format_args!($($msg)*));
+            utpam_output_debug_info(file!(), stdext::function_name!(), line!());
+            utpam_output_debug(format_args!($($msg)*));
         }
 
         {

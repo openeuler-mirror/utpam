@@ -17,7 +17,7 @@ use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[cfg(feature = "debug")]
-use crate::common::utpam_output_debug_and_info;
+use crate::common::{utpam_output_debug, utpam_output_debug_info};
 use crate::D;
 
 pub type DelayFnPtr = fn(u8, u32, Option<&dyn Any>) -> u64;

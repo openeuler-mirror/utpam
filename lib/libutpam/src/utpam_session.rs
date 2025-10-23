@@ -9,7 +9,7 @@ use crate::utpam_dispatch::utpam_dispatch;
 use crate::{D, IF_NO_UTPAMH, UTPAM_FROM_MODULE};
 
 #[cfg(feature = "debug")]
-use crate::common::utpam_output_debug_and_info;
+use crate::common::{utpam_output_debug, utpam_output_debug_info};
 
 //打开会话
 pub fn utpam_open_session(utpamh: &mut Option<Box<UtpamHandle>>, flags: u32) -> u8 {

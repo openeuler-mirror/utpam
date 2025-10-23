@@ -10,7 +10,7 @@ use std::any::Any;
 use std::rc::Rc;
 
 #[cfg(feature = "debug")]
-use crate::common::utpam_output_debug_and_info;
+use crate::common::{utpam_output_debug, utpam_output_debug_info};
 
 /// 查找UtpamData结构体里的特定数据
 pub fn utpam_locate_data<'a>(utpamh: &'a UtpamHandle, name: &'a str) -> Option<&'a UtpamData> {

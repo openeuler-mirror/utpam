@@ -23,3 +23,6 @@ crate-type = ["rlib","cdylib"]
 
 [features]
 debug = []
+have_audit= []
+
+default = ["debug", "have_audit"]

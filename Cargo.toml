@@ -9,4 +9,5 @@ members = [
     "lib/pam",
     "modules/utpam_deny", 
     "modules/utpam_echo",
+    "modules/utpam_rootok",
 ]

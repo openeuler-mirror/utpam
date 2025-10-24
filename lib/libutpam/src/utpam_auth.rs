@@ -57,7 +57,7 @@ pub fn utpam_setcred(utpamh: &mut Option<Box<UtpamHandle>>, mut flags: u32) -> u
         flags = PAM_ESTABLISH_CRED;
     }
 
-    let retval = utpam_dispatch(utpamh, flags, PAM_AUTHENTICATE);
+    let retval = utpam_dispatch(utpamh, flags, PAM_SETCRED);
 
     D!("exiting");
 

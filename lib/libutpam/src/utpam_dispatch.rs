@@ -35,9 +35,9 @@ fn utpam_dispatch_aux(
     use_cached_chain: i32,
 ) -> u8 {
     let mut depth = 0;
-    let mut impression = PAM_UNDEF;
-    let mut status = PAM_MUST_FAIL_CODE;
-    let mut skip_depth = 0;
+    let mut impression;
+    let mut status;
+    let skip_depth;
     let mut prev_level = 0;
 
     let mut substates = vec![UtpamSubstackState {
@@ -71,7 +71,13 @@ fn utpam_dispatch_aux(
         utpamh.former.status = PAM_MUST_FAIL_CODE;
         utpamh.former.depth = 0;
         utpamh.former.substates = vec![];
-    };
+    } else {
+        skip_depth = 0;
+        impression = PAM_UNDEF;
+        substates[0].impression = impression;
+        status = PAM_MUST_FAIL_CODE;
+        substates[0].status = status;
+    }
 
     while let Some(ref mut h) = handlers {
         let mut retval;

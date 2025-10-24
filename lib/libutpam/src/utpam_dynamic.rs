@@ -16,11 +16,15 @@ pub fn utpam_dlopen(path: String) -> Result<Library, Box<dyn std::error::Error>>
 
 //从由 handle 指定的已加载库中查找名为 symbol 的符号
 pub fn utpam_dlsym<'a>(
-    handle: &'a Library,
+    handle: &'a Option<&Library>,
     symbol: &'a [u8],
 ) -> Result<Symbol<'a, CallSpi>, Box<dyn std::error::Error>> {
-    unsafe {
-        let func: Symbol<CallSpi> = handle.get(symbol)?;
-        Ok(func)
+    if let Some(h) = handle {
+        unsafe {
+            let func: Symbol<CallSpi> = h.get(symbol)?;
+            Ok(func)
+        }
+    } else {
+        Err("Error: handle is None".into())
     }
 }

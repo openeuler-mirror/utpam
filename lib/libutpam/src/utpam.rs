@@ -55,6 +55,9 @@ pub const UTPAM_CONFIG_DIST_D: &str = "/usr/lib/utpam.d";
 pub const UTPAM_CONFIG_DIST2_D: &str = "/utpam.d";
 pub const UTPAM_DEFAULT_SERVICE: &str = "other";
 
+#[cfg(feature = "PAM_LOCKING")]
+pub const UTPAM_LOCK_FILE: &str = "/var/lock/subsys/UTPAM";
+
 #[macro_export]
 macro_rules! PAM_ACTION_IS_JUMP {
     ($x:expr) => {{

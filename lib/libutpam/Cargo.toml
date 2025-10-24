@@ -26,6 +26,7 @@ debug = []
 have_audit= []
 PAM_READ_BOTH_CONFS = []
 PAM_CONFIG_DIST2_D = []
+PAM_LOCKING = []
 
 default = ["debug", "have_audit"]
 

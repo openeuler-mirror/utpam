@@ -25,6 +25,9 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use std::rc::Rc;
 
+#[cfg(feature = "PAM_LOCKING")]
+use crate::utpam_delay::{utpam_await_timer, utpam_fail_delay};
+
 const PAM_T_ANY: i32 = 0;
 const PAM_T_AUTH: i32 = 1;
 const PAM_T_SESS: i32 = 2;
@@ -51,7 +54,31 @@ pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> u8 {
         return PAM_BAD_ITEM;
     }
 
-    //PAM_LOCKING-检查子系统是否锁定：条件编译（最后处理）
+    /* Is the PAM subsystem locked？*/
+    #[cfg(feature = "PAM_LOCKING")]
+    {
+        match File::open(UTPAM_LOCK_FILE) {
+            Ok(_) => {
+                pam_syslog!(
+                    &utpamh,
+                    LOG_ERR,
+                    "utpam_init_handlers: UTPAM lockfile (UTPAM_LOCK_FILE) exists - aborting",
+                );
+                utpamh.fail_delay.utpam_start_timer();
+                utpam_fail_delay(utpamh, 5000000);
+                utpam_await_timer(utpamh, PAM_ABORT);
+                return PAM_ABORT;
+            }
+            Err(e) => {
+                pam_syslog!(
+                    &utpamh,
+                    LOG_ERR,
+                    "utpam_init_handlers: Failed to open UTPAM_LOCK_FILE file - {}",
+                    e
+                );
+            }
+        }
+    }
 
     //解析配置文件
     let mut path: Option<PathBuf> = None;

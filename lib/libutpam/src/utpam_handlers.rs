@@ -80,99 +80,37 @@ pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> u8 {
         }
     }
 
-    //解析配置文件
-    let mut path: Option<PathBuf> = None;
-    let mut file: Option<File> = None;
-
-    //检查配置目录是否存在
-    let mut dir_exist: bool = false;
-    if utpamh.confdir.exists()
-        || check_directory(UTPAM_CONFIG_D)
-        || check_directory(UTPAM_CONFIG_DIST_D)
+    /*
+     * Now parse the config file(s) and add handlers
+     */
     {
-        dir_exist = true;
-    }
-    #[cfg(feature = "PAM_CONFIG_DIST2_D")]
-    if check_directory(UTPAM_CONFIG_DIST2_D) {
-        dir_exist = true;
-    }
+        let mut path: Option<PathBuf> = None;
+        let mut file: Option<File> = None;
 
-    if dir_exist {
-        let mut read_something = 0;
-        //打开配置文件并解析
-        if utpam_open_config_file(utpamh, utpamh.service_name.clone(), &mut path, &mut file)
-            == PAM_SUCCESS
+        //检查配置目录是否存在
+        let mut dir_exist: bool = false;
+        if utpamh.confdir.exists()
+            || check_directory(UTPAM_CONFIG_D)
+            || check_directory(UTPAM_CONFIG_DIST_D)
         {
-            //解析配置文件
-            retval = utpam_parse_config_file(
-                utpamh,
-                file.as_mut().unwrap(),
-                Some(utpamh.service_name.clone()),
-                PAM_T_ANY,
-                0,
-                0,
-                #[cfg(feature = "PAM_READ_BOTH_CONFS")]
-                false,
-            );
-
-            if retval != PAM_SUCCESS {
-                let path = if let Some(s) = &path {
-                    s.to_str().unwrap()
-                } else {
-                    "unknown file"
-                };
-                pam_syslog!(
-                    &utpamh,
-                    LOG_ERR,
-                    "utpam_init_handlers: error reading {}",
-                    path
-                );
-                let err = pam_strerror(utpamh, LOG_ERR);
-                pam_syslog!(&utpamh, LOG_ERR, "utpam_init_handlers [{}]", err);
-            } else {
-                read_something = 1;
-            }
-        } else {
-            D!(
-                "unable to open configuration for: {:?}",
-                utpamh.service_name
-            );
-            #[cfg(feature = "PAM_READ_BOTH_CONFS")]
-            D!("checking : {:?}", UTPAM_CONFIG);
-
-            #[cfg(feature = "PAM_READ_BOTH_CONFS")]
-            if !utpamh.confdir.exists() {
-                if let Ok(mut f) = File::open(UTPAM_CONFIG) {
-                    retval = utpam_parse_config_file(
-                        utpamh,
-                        &mut f,
-                        None,
-                        PAM_T_ANY,
-                        0,
-                        0,
-                        #[cfg(feature = "PAM_READ_BOTH_CONFS")]
-                        true,
-                    );
-                }
-            }
-            #[cfg(not(feature = "PAM_READ_BOTH_CONFS"))]
-            {
-                retval = PAM_SUCCESS;
-            }
+            dir_exist = true;
+        }
+        #[cfg(feature = "PAM_CONFIG_DIST2_D")]
+        if check_directory(UTPAM_CONFIG_DIST2_D) {
+            dir_exist = true;
         }
 
-        if retval == PAM_SUCCESS {
-            if utpam_open_config_file(
-                utpamh,
-                UTPAM_DEFAULT_SERVICE.to_string(),
-                &mut path,
-                &mut file,
-            ) == PAM_SUCCESS
+        if dir_exist {
+            let mut read_something = 0;
+            //打开配置文件并解析
+            if utpam_open_config_file(utpamh, utpamh.service_name.clone(), &mut path, &mut file)
+                == PAM_SUCCESS
             {
+                //解析配置文件
                 retval = utpam_parse_config_file(
                     utpamh,
                     file.as_mut().unwrap(),
-                    Some(UTPAM_DEFAULT_SERVICE.to_string()),
+                    Some(utpamh.service_name.clone()),
                     PAM_T_ANY,
                     0,
                     0,
@@ -192,51 +130,120 @@ pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> u8 {
                         path
                     );
                     let err = pam_strerror(utpamh, LOG_ERR);
-                    pam_syslog!(&utpamh, LOG_ERR, "utpam_init_handlers: [{}]", err);
+                    pam_syslog!(&utpamh, LOG_ERR, "utpam_init_handlers [{}]", err);
                 } else {
                     read_something = 1;
                 }
             } else {
                 D!(
-                    "unable to open configuration for : {}",
-                    UTPAM_DEFAULT_SERVICE
+                    "unable to open configuration for: {:?}",
+                    utpamh.service_name
                 );
-                pam_syslog!(
-                    &utpamh,
-                    LOG_ERR,
-                    "utpam_init_handlers: no default config {}",
-                    UTPAM_DEFAULT_SERVICE
-                );
+                #[cfg(feature = "PAM_READ_BOTH_CONFS")]
+                D!("checking : {:?}", UTPAM_CONFIG);
+
+                #[cfg(feature = "PAM_READ_BOTH_CONFS")]
+                if !utpamh.confdir.exists() {
+                    if let Ok(mut f) = File::open(UTPAM_CONFIG) {
+                        retval = utpam_parse_config_file(
+                            utpamh,
+                            &mut f,
+                            None,
+                            PAM_T_ANY,
+                            0,
+                            0,
+                            #[cfg(feature = "PAM_READ_BOTH_CONFS")]
+                            true,
+                        );
+                    } else {
+                        retval = PAM_SUCCESS;
+                    }
+                } else {
+                    retval = PAM_SUCCESS;
+                }
+                #[cfg(not(feature = "PAM_READ_BOTH_CONFS"))]
+                {
+                    retval = PAM_SUCCESS;
+                }
             }
-            if read_something == 0 {
-                retval = PAM_ABORT;
-            }
-        }
-    } else {
-        let path = Path::new(UTPAM_CONFIG);
-        match File::open(path) {
-            Ok(ref mut file) => {
-                retval = utpam_parse_config_file(
+
+            if retval == PAM_SUCCESS {
+                if utpam_open_config_file(
                     utpamh,
-                    file,
-                    None,
-                    PAM_T_ANY,
-                    0,
-                    0,
-                    #[cfg(feature = "PAM_READ_BOTH_CONFS")]
-                    false,
-                );
+                    UTPAM_DEFAULT_SERVICE.to_string(),
+                    &mut path,
+                    &mut file,
+                ) == PAM_SUCCESS
+                {
+                    retval = utpam_parse_config_file(
+                        utpamh,
+                        file.as_mut().unwrap(),
+                        Some(UTPAM_DEFAULT_SERVICE.to_string()),
+                        PAM_T_ANY,
+                        0,
+                        0,
+                        #[cfg(feature = "PAM_READ_BOTH_CONFS")]
+                        false,
+                    );
+                    if retval != PAM_SUCCESS {
+                        let path = if let Some(s) = &path {
+                            s.to_str().unwrap()
+                        } else {
+                            "unknown file"
+                        };
+                        pam_syslog!(
+                            &utpamh,
+                            LOG_ERR,
+                            "utpam_init_handlers: error reading {}",
+                            path
+                        );
+                        let err = pam_strerror(utpamh, LOG_ERR);
+                        pam_syslog!(&utpamh, LOG_ERR, "utpam_init_handlers: [{}]", err);
+                    } else {
+                        read_something = 1;
+                    }
+                } else {
+                    D!(
+                        "unable to open configuration for : {}",
+                        UTPAM_DEFAULT_SERVICE
+                    );
+                    pam_syslog!(
+                        &utpamh,
+                        LOG_ERR,
+                        "utpam_init_handlers: no default config {}",
+                        UTPAM_DEFAULT_SERVICE
+                    );
+                }
+                if read_something == 0 {
+                    retval = PAM_ABORT;
+                }
             }
-            Err(_) => {
-                pam_syslog!(
-                    &utpamh,
-                    LOG_ERR,
-                    "utpam_init_handlers: error reading {}",
-                    UTPAM_CONFIG
-                );
-                return PAM_ABORT;
-            }
-        };
+        } else {
+            let path = Path::new(UTPAM_CONFIG);
+            match File::open(path) {
+                Ok(ref mut file) => {
+                    retval = utpam_parse_config_file(
+                        utpamh,
+                        file,
+                        None,
+                        PAM_T_ANY,
+                        0,
+                        0,
+                        #[cfg(feature = "PAM_READ_BOTH_CONFS")]
+                        false,
+                    );
+                }
+                Err(_) => {
+                    pam_syslog!(
+                        &utpamh,
+                        LOG_ERR,
+                        "utpam_init_handlers: error reading {}",
+                        UTPAM_CONFIG
+                    );
+                    return PAM_ABORT;
+                }
+            };
+        }
     }
 
     if retval != PAM_SUCCESS {
@@ -400,10 +407,6 @@ fn utpam_parse_config_file(
     let mut f = BufReader::new(file);
     let mut buffer = UtpamLineBuffer::default();
     let repl = String::from(" ");
-    let mut tok;
-    let mut handler_type = PAM_HT_MODULE;
-    let mut module_type;
-    let mut actions: Vec<i32> = vec![0; PAM_RETURN_VALUES];
 
     //逐行处理配置文件内容
     let mut x = utpam_line_assemble(&mut f, &mut buffer, repl.clone());
@@ -415,6 +418,10 @@ fn utpam_parse_config_file(
         let mut argc = 0;
         let mut argv: Vec<String> = vec![];
         let other: bool;
+        let mut handler_type = PAM_HT_MODULE;
+        let module_type;
+        let mut actions: Vec<i32> = vec![0; PAM_RETURN_VALUES];
+        let tok;
 
         D!("LINE: {:?}", buf);
         //判断是否提供服务名称
@@ -433,10 +440,12 @@ fn utpam_parse_config_file(
         };
 
         #[cfg(feature = "PAM_READ_BOTH_CONFS")]
-        if not_other {
-            other = false;
-        } else {
-            other = this_service.eq_ignore_ascii_case(UTPAM_DEFAULT_SERVICE);
+        {
+            other = if not_other {
+                false
+            } else {
+                this_service.eq_ignore_ascii_case(UTPAM_DEFAULT_SERVICE)
+            };
         }
 
         #[cfg(not(feature = "PAM_READ_BOTH_CONFS"))]
@@ -446,7 +455,7 @@ fn utpam_parse_config_file(
 
         let accspt = this_service.eq_ignore_ascii_case(&utpamh.service_name.clone());
 
-        if !accspt || other {
+        if accspt || other {
             let mut pam_include = 0;
             let mut substack = 0;
 
@@ -606,11 +615,12 @@ fn utpam_parse_config_file(
                             include_level + 1,
                             stack_level + substack,
                             #[cfg(feature = "PAM_READ_BOTH_CONFS")]
-                            not_other,
+                            !other,
                         ) == PAM_SUCCESS
                         {
-                            println!("include success");
-                            //continue;
+                            //更新循环
+                            x = utpam_line_assemble(&mut f, &mut buffer, repl.clone());
+                            continue;
                         }
 
                         utpam_set_default_control(&mut actions, PAM_ACTION_BAD);
@@ -793,7 +803,7 @@ fn utpam_add_handler(
     stack_level: i32,
     module_type: i32,
     actions: &mut [i32],
-    mod_path: &Option<String>,
+    mod_paths: &Option<String>,
     argc: i32,
     argv: &[String],
 ) -> u8 {
@@ -802,23 +812,24 @@ fn utpam_add_handler(
         "adding module_type {}, handler_type {}, module {:?}",
         module_type,
         handler_type,
-        mod_path
+        mod_paths
     );
 
     let mut load_module = None;
 
-    //let mut mod_type: i32 = PAM_MT_FAULTY_MOD;
-    let mod_type;
+    let mut mod_type: u8 = PAM_MT_FAULTY_MOD;
     let unknown_module = UNKNOWN_MODULE.to_string();
 
     //处理模块路径
-    let mod_path = match mod_path {
+    let mod_path = match mod_paths {
         Some(s) => s,
         None => &unknown_module,
     };
 
     //根据模块路径获取模块类型
-    if handler_type == PAM_HT_MODULE || handler_type == PAM_HT_SILENT_MODULE {
+    if (handler_type == PAM_HT_MODULE || handler_type == PAM_HT_SILENT_MODULE)
+        && mod_paths.is_some()
+    {
         let new_path = PathBuf::from(DEFAULT_MODULE_PATH).join(mod_path);
         if mod_path.starts_with('/') {
             load_module = utpam_load_module(
@@ -836,16 +847,14 @@ fn utpam_add_handler(
             pam_syslog!(&utpamh, LOG_ERR, "cannot malloc full mod path",);
             return PAM_ABORT;
         }
-    }
 
-    //如果模块加载失败，则返回PAM_ABORT
-    let load_module = match load_module {
-        Some(m) => {
-            mod_type = m.moule_type;
-            m
-        }
-        None => return PAM_ABORT,
-    };
+        match load_module {
+            Some(m) => {
+                mod_type = m.moule_type;
+            }
+            None => return PAM_ABORT,
+        };
+    }
 
     //决定使用哪个处理程序列表
     let the_handlers = if other {
@@ -889,72 +898,73 @@ fn utpam_add_handler(
         return PAM_ABORT;
     }
 
-    let handle = match load_module.dl_handle {
-        Some(ref s) => s,
-        None => {
-            println!("unable to dlopen");
-            return PAM_ABORT;
-        }
+    let mut handle = None;
+    if let Some(s) = load_module {
+        handle = s.dl_handle.as_ref();
     };
-
-    // 获取函数指针
-    match utpam_dlsym(handle, sym.as_bytes()) {
-        Ok(func) => {
-            let path = match extract_modulename(mod_path) {
-                Some(mod_name) => mod_name,
-                None => return PAM_ABORT,
-            };
-            let handler = Handler {
-                handler_type,
-                func: Some(*func),
-                actions: actions.to_owned(),
-                cached_retval: Rc::new(RefCell::new(_PAM_INVALID_RETVAL)),
-                argc,
-                argv: argv.to_owned(),
-                next: None,
-                mod_name: path,
-                stack_level,
-                grantor: 0,
-            };
-            // 将新 Handler 插入链表末尾
-            append_handler(handler_p, handler);
-        }
-        Err(_) => {
-            pam_syslog!(&utpamh, LOG_ERR, "unable to resolve symbol: {}", sym);
-            return PAM_ABORT;
+    let mut func = None;
+    if mod_type == PAM_MT_DYNAMIC_MOD {
+        // 获取函数指针
+        match utpam_dlsym(&handle, sym.as_bytes()) {
+            Ok(fun) => {
+                func = Some(*fun);
+            }
+            Err(_) => {
+                pam_syslog!(&utpamh, LOG_ERR, "unable to resolve symbol: {}", sym);
+                return PAM_ABORT;
+            }
         }
     }
-
-    if !sym2.is_empty() {
-        match utpam_dlsym(handle, sym2.as_bytes()) {
-            Ok(func) => {
-                // 如果存在第二个函数指针，则将其插入链表末尾
-                if let Some(handler_p2) = handler_p2 {
-                    let path = match extract_modulename(mod_path) {
-                        Some(mod_name) => mod_name,
-                        None => return PAM_ABORT,
-                    };
-
-                    let handler = Handler {
-                        handler_type,
-                        func: Some(*func),
-                        actions: actions.to_owned(),
-                        cached_retval: Rc::new(RefCell::new(_PAM_INVALID_RETVAL)),
-                        argc,
-                        argv: argv.to_owned(),
-                        next: None,
-                        mod_name: path,
-                        stack_level,
-                        grantor: 0,
-                    };
-                    append_handler(handler_p2, handler);
-                }
+    let mut func2 = None;
+    if mod_type == PAM_MT_DYNAMIC_MOD && !sym2.is_empty() {
+        match utpam_dlsym(&handle, sym2.as_bytes()) {
+            Ok(fun) => {
+                func2 = Some(*fun);
             }
             Err(_) => {
                 pam_syslog!(&utpamh, LOG_ERR, "unable to resolve symbol: {}", sym2);
                 return PAM_ABORT;
             }
         }
+    }
+
+    let path = match extract_modulename(mod_path) {
+        Some(mod_name) => mod_name,
+        None => return PAM_ABORT,
+    };
+    let handler = Handler {
+        handler_type,
+        func,
+        actions: actions.to_owned(),
+        cached_retval: Rc::new(RefCell::new(_PAM_INVALID_RETVAL)),
+        argc,
+        argv: argv.to_owned(),
+        next: None,
+        mod_name: path,
+        stack_level,
+        grantor: 0,
+    };
+    // 将新 Handler 插入链表末尾
+    append_handler(handler_p, handler);
+
+    if let Some(handler_p2) = handler_p2 {
+        let path = match extract_modulename(mod_path) {
+            Some(mod_name) => mod_name,
+            None => return PAM_ABORT,
+        };
+        let handler = Handler {
+            handler_type,
+            func: func2,
+            actions: actions.to_owned(),
+            cached_retval: Rc::new(RefCell::new(_PAM_INVALID_RETVAL)),
+            argc,
+            argv: argv.to_owned(),
+            next: None,
+            mod_name: path,
+            stack_level,
+            grantor: 0,
+        };
+        append_handler(handler_p2, handler);
     }
 
     D!("returning successfully");

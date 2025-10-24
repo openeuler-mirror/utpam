@@ -1,5 +1,5 @@
 [package]
-name = "pam"
+name = "libpam_c"
 version = "0.1.0"
 edition = "2021"
 
@@ -13,5 +13,5 @@ log = "0.4.22"
 tklog = "0.2.4"
 
 [lib]
-name = "pam"
+name = "pam_c"
 crate-type = ["rlib","cdylib"]

@@ -35,7 +35,7 @@ const PAM_T_ACCT: i32 = 4;
 const PAM_T_PASS: i32 = 8;
 
 const UNKNOWN_MODULE: &str = "unknown module";
-const DEFAULT_MODULE_PATH: &str = "/lib64/security";
+const DEFAULT_MODULE_PATH: &str = "/lib64/utpam";
 
 //初始化UtpamHandle结构体字段
 pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> u8 {

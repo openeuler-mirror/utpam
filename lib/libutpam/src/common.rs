@@ -184,8 +184,8 @@ impl Debug for UtpamConv {
 }
 
 pub struct UtpamResponse {
-    pub resp: Vec<String>,
-    pub resp_retcode: isize,
+    pub resp: String,
+    pub resp_retcode: u8,
 }
 
 pub struct UtpamMessage {

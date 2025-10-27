@@ -20,13 +20,13 @@ pub fn login_conv(
     _appdata_ptr: Option<Rc<dyn Any>>,
 ) -> u8 {
     let mut reply = vec![UtpamResponse {
-        resp: vec![],
+        resp: String::default(),
         resp_retcode: 0,
     }];
 
     for i in 0..num_msg {
         reply[i].resp_retcode = 0;
-        reply[i].resp = vec![];
+        reply[i].resp = String::default();
 
         match msgm[i].msg_style {
             PAM_PROMPT_ECHO_ON => {
@@ -34,7 +34,7 @@ pub fn login_conv(
                     println!("conv function called with wrong prompt: {}", msgm[i].msg);
                     return 1;
                 }
-                reply[i].resp = vec![USER.to_string()];
+                reply[i].resp = USER.to_string();
             }
             _ => {
                 println!("utpam_get_user calls conv function with unexpected msg style");

@@ -57,7 +57,7 @@ pub fn utpam_line_assemble(
 
             if !buffer.chunk.is_empty() {
                 buffer.chunk.push_str(&buffer.assembled);
-                buffer.assembled = buffer.chunk.clone();
+                buffer.assembled.clone_from(&buffer.chunk);
                 buffer.chunk.clear();
             }
         }
@@ -68,7 +68,7 @@ pub fn utpam_line_assemble(
 
     // 在遍历结束时检查 buffer.chunk 是否还有内容
     if !buffer.chunk.is_empty() {
-        buffer.assembled = buffer.chunk.clone();
+        buffer.assembled.clone_from(&buffer.chunk);
         buffer.chunk.clear();
         return 1;
     }

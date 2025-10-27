@@ -3,43 +3,36 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
-#![allow(
-    dead_code,
-    unused_mut,
-    unused_variables,
-    unused_imports,
-    clippy::len_zero,
-    clippy::unnecessary_cast
-)]
-
 use std::ffi::CString;
-use utpam::common::PAM_BUF_ERR;
-use utpam::common::PAM_PERM_DENIED;
-use utpam::common::PAM_SUCCESS;
+use utpam::common::{PAM_BUF_ERR, PAM_PERM_DENIED, PAM_SUCCESS};
 use utpam::utpam::UtpamHandle;
+use utpam::utpam_env::{utpam_getenv, utpam_putenv};
+
+#[cfg(feature = "debug")]
+use crate::utpam_output_debug;
+#[cfg(feature = "debug")]
 use utpam::utpam_strerror::pam_strerror;
+use utpam::D;
 
 //将用户环境变量复制到utpamh，判断用户环境变量指针及指针内容是否为空，如不为空，使用
 //pam_putenv函数添加到pamh中；
 //spi；
 //遗留部分为debug，fn pam_putenv,fn pam_strerror,
 #[no_mangle]
-pub fn utpam_misc_paste_env(utpamh: &mut Box<UtpamHandle>, user_env: &[&str]) -> u8 {
+pub fn utpam_misc_paste_env(utpamh: &mut Option<Box<UtpamHandle>>, user_env: &[&str]) -> u8 {
     for env_var in user_env.iter().filter(|s| !s.is_empty()) {
-        let mut retval: u8 = 0;
-
-        println!("uploading: {}", env_var); //debug
-                                            //retval = pam_putenv(pamh,env_var);
+        D!("uploading: {}", env_var);
+        let retval: u8 = utpam_putenv(utpamh, env_var);
         if retval != PAM_SUCCESS {
-            println!(
+            D!(
                 "error setting {:?}: {:?}",
                 env_var,
-                pam_strerror(utpamh, retval)
-            ); //debug
+                pam_strerror(None, retval)
+            );
             return retval;
         }
     }
-    println!("done."); //debug
+    D!("done.");
     PAM_SUCCESS
 }
 
@@ -62,31 +55,26 @@ pub fn utpam_misc_drop_env() -> Vec<CString> {
  * */
 #[no_mangle]
 pub fn utpam_misc_setenv(
-    utpamh: &mut Box<UtpamHandle>,
-    name: &'static str,
-    value: &'static str,
+    utpamh: &mut Option<Box<UtpamHandle>>,
+    name: &str,
+    value: &str,
     readonly: i64,
 ) -> u8 {
-    let mut tmp: String = Default::default();
-    let mut retval: u8 = 0;
-
     if readonly != 0 {
-        let etmp: Option<&'static str> = None;
-        //etmp = pam_getenv(utpamh,name);
-        if let Some(s) = etmp {
-            println!("failed to set readonly variable: {}", name); //debug
+        let etmp: Option<String> = utpam_getenv(utpamh, name);
+        if etmp.is_some() {
+            D!("failed to set readonly variable: {}", name);
             return PAM_PERM_DENIED;
         }
     }
 
-    let result = format!("{}={}", name, value);
-    if result.len() >= 1 {
-        println!("pam_putt()ing: {}", tmp); //debug
-                                            //retval = pam_putenv(utpamh,result);
-                                            //关于pam_drop,result离开作用域会自动释放；
+    let tmp = format!("{}={}", name, value);
+    let retval: u8 = if !tmp.is_empty() {
+        D!("pam_putt()ing: {}", tmp);
+        utpam_putenv(utpamh, &tmp)
     } else {
-        println!("malloc failure"); //debug
-        retval = PAM_BUF_ERR;
-    }
+        D!("malloc failure");
+        PAM_BUF_ERR
+    };
     retval
 }

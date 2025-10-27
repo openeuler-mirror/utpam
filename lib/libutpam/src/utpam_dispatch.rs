@@ -64,7 +64,7 @@ fn utpam_dispatch_aux(
         skip_depth = utpamh.former.depth;
         status = utpamh.former.status;
         impression = utpamh.former.impression;
-        substates = utpamh.former.substates.clone();
+        substates.clone_from(&utpamh.former.substates);
 
         //清空 pamh->former 中的状态，为下次可能的恢复调用做准备
         utpamh.former.impression = PAM_UNDEF;
@@ -108,9 +108,9 @@ fn utpam_dispatch_aux(
             match h.func {
                 Some(func) => {
                     D!("passing control to module...");
-                    utpamh.mod_name = h.mod_name.clone();
+                    utpamh.mod_name.clone_from(&h.mod_name);
                     utpamh.mod_argc = h.argc;
-                    utpamh.mod_argv = h.argv.clone();
+                    utpamh.mod_argv.clone_from(&h.argv);
 
                     retval = func(utpamh, flags, Some(h.argc), Some(h.argv.clone()));
                     utpamh.mod_name = String::default();
@@ -129,7 +129,7 @@ fn utpam_dispatch_aux(
             utpamh.former.impression = impression;
             utpamh.former.status = status;
             utpamh.former.depth = depth;
-            utpamh.former.substates = substates.clone();
+            utpamh.former.substates.clone_from(&substates);
 
             D!("module {} returned PAM_INCOMPLETE", depth);
             return retval;

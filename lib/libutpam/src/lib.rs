@@ -15,6 +15,7 @@ pub mod utpam_dispatch;
 pub mod utpam_dynamic;
 pub mod utpam_end;
 pub mod utpam_env;
+pub mod utpam_get_authtok;
 pub mod utpam_handlers;
 pub mod utpam_item;
 pub mod utpam_misc;

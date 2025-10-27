@@ -129,7 +129,7 @@ pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> u8 {
                         "utpam_init_handlers: error reading {}",
                         path
                     );
-                    let err = pam_strerror(utpamh, LOG_ERR);
+                    let err = pam_strerror(LOG_ERR);
                     pam_syslog!(&utpamh, LOG_ERR, "utpam_init_handlers [{}]", err);
                 } else {
                     read_something = 1;
@@ -197,7 +197,7 @@ pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> u8 {
                             "utpam_init_handlers: error reading {}",
                             path
                         );
-                        let err = pam_strerror(utpamh, LOG_ERR);
+                        let err = pam_strerror(LOG_ERR);
                         pam_syslog!(&utpamh, LOG_ERR, "utpam_init_handlers: [{}]", err);
                     } else {
                         read_something = 1;
@@ -370,7 +370,7 @@ fn utpam_load_conf_file(
             not_other,
         );
         if retval != PAM_SUCCESS {
-            let err = pam_strerror(utpamh, retval);
+            let err = pam_strerror(retval);
             pam_syslog!(
                 &utpamh,
                 LOG_ERR,

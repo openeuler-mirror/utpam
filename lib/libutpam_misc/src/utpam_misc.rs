@@ -27,8 +27,6 @@ use zeroize::Zeroize;
 
 #[cfg(feature = "debug")]
 use utpam::common::{utpam_output_debug, utpam_output_debug_info};
-#[cfg(feature = "debug")]
-use utpam::utpam_strerror::pam_strerror;
 use utpam::D;
 
 pub const NCCS: usize = 32;

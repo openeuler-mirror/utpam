@@ -1,3 +1,17 @@
+// Thanks to Tokio for this macro
+macro_rules! feature {
+    (
+        #![$meta:meta]
+        $($item:item)*
+    ) => {
+        $(
+            #[cfg($meta)]
+            #[cfg_attr(docsrs, doc(cfg($meta)))]
+            $item
+        )*
+    }
+}
+
 /// The `libc_bitflags!` macro helps with a common use case of defining a public bitflags type
 /// with values from the libc crate. It is used the same way as the `bitflags!` macro, except
 /// that only the name of the flag value has to be given.
@@ -13,9 +27,9 @@
 ///         /// PROT_WRITE enables write protect
 ///         PROT_WRITE;
 ///         PROT_EXEC;
-///         #[cfg(any(target_os = "linux", target_os = "android"))]
+///         #[cfg(linux_android)]
 ///         PROT_GROWSDOWN;
-///         #[cfg(any(target_os = "linux", target_os = "android"))]
+///         #[cfg(linux_android)]
 ///         PROT_GROWSUP;
 ///     }
 /// }
@@ -49,6 +63,8 @@ macro_rules! libc_bitflags {
         }
     ) => {
         ::bitflags::bitflags! {
+            #[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+            #[repr(transparent)]
             $(#[$outer])*
             pub struct $BitFlags: $T {
                 $(
@@ -73,15 +89,14 @@ macro_rules! libc_bitflags {
 ///         PROT_READ,
 ///         PROT_WRITE,
 ///         PROT_EXEC,
-///         #[cfg(any(target_os = "linux", target_os = "android"))]
+///         #[cfg(linux_android)]
 ///         PROT_GROWSDOWN,
-///         #[cfg(any(target_os = "linux", target_os = "android"))]
+///         #[cfg(linux_android)]
 ///         PROT_GROWSUP,
 ///     }
 /// }
 /// ```
 // Some targets don't use all rules.
-#[allow(unknown_lints)]
 #[allow(unused_macro_rules)]
 macro_rules! libc_enum {
     // Exit rule.
@@ -119,6 +134,8 @@ macro_rules! libc_enum {
         impl ::std::convert::TryFrom<$repr> for $BitFlags {
             type Error = $crate::Error;
             #[allow(unused_doc_comments)]
+            #[allow(deprecated)]
+            #[allow(unused_attributes)]
             fn try_from(x: $repr) -> $crate::Result<Self> {
                 match x {
                     $($try_froms)*

@@ -95,8 +95,8 @@ pub fn pamconv_to_utpamconv(pamconv: *const PamConv) -> UtpamConv {
                     let c_str = unsafe { CString::from_raw((c_response).resp) };
                     let resp_str = c_str.to_string_lossy().into_owned();
                     rust_responses.push(UtpamResponse {
-                        resp: vec![resp_str],
-                        resp_retcode: (c_response).resp_retcode as isize,
+                        resp: resp_str,
+                        resp_retcode: (c_response).resp_retcode as u8,
                     });
                 }
 

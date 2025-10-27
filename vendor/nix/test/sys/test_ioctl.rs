@@ -28,13 +28,20 @@ ioctl_readwrite_buf!(readwritebuf_test, 0, 0, u32);
 // TODO:  Need a way to compute these constants at test time.  Using precomputed
 // values is fragile and needs to be maintained.
 
-#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(linux_android)]
 mod linux {
     // The cast is not unnecessary on all platforms.
     #[allow(clippy::unnecessary_cast)]
     #[test]
     fn test_op_none() {
-        if cfg!(any(target_arch = "mips", target_arch = "mips64", target_arch="powerpc", target_arch="powerpc64")){
+        if cfg!(any(
+            target_arch = "mips",
+            target_arch = "mips32r6",
+            target_arch = "mips64",
+            target_arch = "mips64r6",
+            target_arch = "powerpc",
+            target_arch = "powerpc64"
+        )) {
             assert_eq!(request_code_none!(b'q', 10) as u32, 0x2000_710A);
             assert_eq!(request_code_none!(b'a', 255) as u32, 0x2000_61FF);
         } else {
@@ -47,7 +54,14 @@ mod linux {
     #[allow(clippy::unnecessary_cast)]
     #[test]
     fn test_op_write() {
-        if cfg!(any(target_arch = "mips", target_arch = "mips64", target_arch="powerpc", target_arch="powerpc64")){
+        if cfg!(any(
+            target_arch = "mips",
+            target_arch = "mips32r6",
+            target_arch = "mips64",
+            target_arch = "mips64r6",
+            target_arch = "powerpc",
+            target_arch = "powerpc64"
+        )) {
             assert_eq!(request_code_write!(b'z', 10, 1) as u32, 0x8001_7A0A);
             assert_eq!(request_code_write!(b'z', 10, 512) as u32, 0x8200_7A0A);
         } else {
@@ -59,21 +73,35 @@ mod linux {
     #[cfg(target_pointer_width = "64")]
     #[test]
     fn test_op_write_64() {
-        if cfg!(any(target_arch = "mips64", target_arch="powerpc64")){
-            assert_eq!(request_code_write!(b'z', 10, 1u64 << 32) as u32,
-                       0x8000_7A0A);
+        if cfg!(any(
+            target_arch = "mips64",
+            target_arch = "mips64r6",
+            target_arch = "powerpc64"
+        )) {
+            assert_eq!(
+                request_code_write!(b'z', 10, 1u64 << 32) as u32,
+                0x8000_7A0A
+            );
         } else {
-            assert_eq!(request_code_write!(b'z', 10, 1u64 << 32) as u32,
-                       0x4000_7A0A);
+            assert_eq!(
+                request_code_write!(b'z', 10, 1u64 << 32) as u32,
+                0x4000_7A0A
+            );
         }
-
     }
 
     // The cast is not unnecessary on all platforms.
     #[allow(clippy::unnecessary_cast)]
     #[test]
     fn test_op_read() {
-        if cfg!(any(target_arch = "mips", target_arch = "mips64", target_arch="powerpc", target_arch="powerpc64")){
+        if cfg!(any(
+            target_arch = "mips",
+            target_arch = "mips32r6",
+            target_arch = "mips64",
+            target_arch = "mips64r6",
+            target_arch = "powerpc",
+            target_arch = "powerpc64"
+        )) {
             assert_eq!(request_code_read!(b'z', 10, 1) as u32, 0x4001_7A0A);
             assert_eq!(request_code_read!(b'z', 10, 512) as u32, 0x4200_7A0A);
         } else {
@@ -85,12 +113,20 @@ mod linux {
     #[cfg(target_pointer_width = "64")]
     #[test]
     fn test_op_read_64() {
-        if cfg!(any(target_arch = "mips64", target_arch="powerpc64")){
-            assert_eq!(request_code_read!(b'z', 10, 1u64 << 32) as u32,
-                       0x4000_7A0A);
+        if cfg!(any(
+            target_arch = "mips64",
+            target_arch = "mips64r6",
+            target_arch = "powerpc64"
+        )) {
+            assert_eq!(
+                request_code_read!(b'z', 10, 1u64 << 32) as u32,
+                0x4000_7A0A
+            );
         } else {
-            assert_eq!(request_code_read!(b'z', 10, 1u64 << 32) as u32,
-                       0x8000_7A0A);
+            assert_eq!(
+                request_code_read!(b'z', 10, 1u64 << 32) as u32,
+                0x8000_7A0A
+            );
         }
     }
 
@@ -105,17 +141,14 @@ mod linux {
     #[cfg(target_pointer_width = "64")]
     #[test]
     fn test_op_read_write_64() {
-        assert_eq!(request_code_readwrite!(b'z', 10, 1u64 << 32) as u32,
-                   0xC000_7A0A);
+        assert_eq!(
+            request_code_readwrite!(b'z', 10, 1u64 << 32) as u32,
+            0xC000_7A0A
+        );
     }
 }
 
-#[cfg(any(target_os = "dragonfly",
-          target_os = "freebsd",
-          target_os = "ios",
-          target_os = "macos",
-          target_os = "netbsd",
-          target_os = "openbsd"))]
+#[cfg(bsd)]
 mod bsd {
     #[test]
     fn test_op_none() {
@@ -123,7 +156,7 @@ mod bsd {
         assert_eq!(request_code_none!(b'a', 255), 0x2000_61FF);
     }
 
-    #[cfg(any(target_os = "dragonfly", target_os = "freebsd"))]
+    #[cfg(freebsdlike)]
     #[test]
     fn test_op_write_int() {
         assert_eq!(request_code_write_int!(b'v', 4), 0x2004_7604);
@@ -167,13 +200,13 @@ mod bsd {
     }
 }
 
-#[cfg(any(target_os = "android", target_os = "linux"))]
+#[cfg(linux_android)]
 mod linux_ioctls {
     use std::mem;
     use std::os::unix::io::AsRawFd;
 
+    use libc::{termios, TCGETS, TCSBRK, TCSETS, TIOCNXCL};
     use tempfile::tempfile;
-    use libc::{TCGETS, TCSBRK, TCSETS, TIOCNXCL, termios};
 
     use nix::errno::Errno;
 
@@ -263,7 +296,7 @@ mod linux_ioctls {
     }
 
     // From linux/videodev2.h
-    ioctl_readwrite!(enum_audio,  b'V', 65, v4l2_audio);
+    ioctl_readwrite!(enum_audio, b'V', 65, v4l2_audio);
     #[test]
     fn test_ioctl_readwrite() {
         let file = tempfile().unwrap();
@@ -289,7 +322,12 @@ mod linux_ioctls {
     }
 
     // From linux/spi/spidev.h
-    ioctl_write_buf!(spi_ioc_message, super::SPI_IOC_MAGIC, super::SPI_IOC_MESSAGE, spi_ioc_transfer);
+    ioctl_write_buf!(
+        spi_ioc_message,
+        super::SPI_IOC_MAGIC,
+        super::SPI_IOC_MESSAGE,
+        spi_ioc_transfer
+    );
     #[test]
     fn test_ioctl_write_buf() {
         let file = tempfile().unwrap();
@@ -306,8 +344,8 @@ mod freebsd_ioctls {
     use std::mem;
     use std::os::unix::io::AsRawFd;
 
-    use tempfile::tempfile;
     use libc::termios;
+    use tempfile::tempfile;
 
     use nix::errno::Errno;
 

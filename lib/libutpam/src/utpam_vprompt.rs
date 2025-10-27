@@ -19,7 +19,7 @@ use zeroize::Zeroize;
 macro_rules! pam_error {
     ($utpamh:expr, $fmt:expr, $($args:tt),*) => {{
         let msgbuf = format!($fmt, $($args),*);
-        pam_vprompt($utpamh, PAM_ERROR_MSG, Vec::new(), msgbuf);
+        pam_vprompt($utpamh, PAM_ERROR_MSG, String::new(), msgbuf);
     }
 }
 }
@@ -42,12 +42,7 @@ macro_rules! pam_prompt {
 }
 }
 
-pub fn pam_vprompt(
-    utpamh: &UtpamHandle,
-    style: u8,
-    mut response: Vec<String>,
-    msgbuf: String,
-) -> u8 {
+pub fn pam_vprompt(utpamh: &UtpamHandle, style: u8, mut response: String, msgbuf: String) -> u8 {
     let mut msg = UtpamMessage {
         msg_style: style,
         msg: String::default(),
@@ -57,7 +52,7 @@ pub fn pam_vprompt(
     let mut retval: u8 = 0;
 
     if response.is_empty() {
-        response = Vec::default();
+        response = String::default();
     }
 
     retval = utpam_get_item(utpamh, PAM_CONV, &mut convp);
@@ -101,7 +96,7 @@ pub fn pam_vprompt(
                     utpam_overwrite_string!(resp[0].resp);
                 }
             }
-            None => response.push("".to_string()),
+            None => response = String::default(),
         }
     }
     utpam_overwrite_string!(msgbuf.clone());

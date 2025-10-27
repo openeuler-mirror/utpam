@@ -9,7 +9,7 @@ use utpam::utpam::UtpamHandle;
 use utpam::utpam_env::{utpam_getenv, utpam_putenv};
 
 #[cfg(feature = "debug")]
-use crate::utpam_output_debug;
+use utpam::common::{utpam_output_debug, utpam_output_debug_info};
 #[cfg(feature = "debug")]
 use utpam::utpam_strerror::pam_strerror;
 use utpam::D;
@@ -24,11 +24,7 @@ pub fn utpam_misc_paste_env(utpamh: &mut Option<Box<UtpamHandle>>, user_env: &[&
         D!("uploading: {}", env_var);
         let retval: u8 = utpam_putenv(utpamh, env_var);
         if retval != PAM_SUCCESS {
-            D!(
-                "error setting {:?}: {:?}",
-                env_var,
-                pam_strerror(None, retval)
-            );
+            D!("error setting {:?}: {:?}", env_var, pam_strerror(retval));
             return retval;
         }
     }

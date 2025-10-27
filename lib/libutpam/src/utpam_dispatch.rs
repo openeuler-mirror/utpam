@@ -116,7 +116,7 @@ fn utpam_dispatch_aux(
                     utpamh.mod_name = String::default();
                     utpamh.mod_argc = 0;
                     utpamh.mod_argv = vec![];
-                    D!("module returned: {}", pam_strerror(utpamh, retval));
+                    D!("module returned: {}", pam_strerror(retval));
                 }
                 None => {
                     D!("module function is not defined, indicating failure");

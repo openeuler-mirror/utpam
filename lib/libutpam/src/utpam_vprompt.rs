@@ -82,7 +82,7 @@ pub fn pam_vprompt(
         pam_syslog!(utpamh, LOG_ERR, "empty message",);
         return PAM_CONV_ERR;
     }
-    msg.msg = msgbuf.clone();
+    msg.msg.clone_from(&msgbuf);
     // 调用conv()函数，只获取1条消息
     retval = new_conv(1, &[msg], &mut pam_resp, conv.appdata_ptr.clone());
     if retval != PAM_SUCCESS && pam_resp.is_some() {
@@ -95,7 +95,7 @@ pub fn pam_vprompt(
     if !response.is_empty() {
         match pam_resp {
             Some(ref mut resp) => {
-                response = resp[0].resp.clone();
+                response.clone_from(&resp[0].resp);
 
                 if !resp[0].resp.is_empty() {
                     utpam_overwrite_string!(resp[0].resp);

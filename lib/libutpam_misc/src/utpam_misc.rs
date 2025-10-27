@@ -491,7 +491,7 @@ pub fn misc_conv(
 
             if !string.is_empty() {
                 reply[count].resp_retcode = 0;
-                reply[count].resp = string.clone();
+                reply[count].resp.clone_from(&string);
                 string.clear();
             }
             count += 1;

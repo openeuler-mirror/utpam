@@ -109,7 +109,7 @@ pub fn utpam_get_data(
     };
 
     if let Some(data_entry) = utpam_locate_data(utpamh, module_data_name) {
-        *datap = data_entry.data.clone();
+        datap.clone_from(&data_entry.data);
         return PAM_SUCCESS;
     }
 

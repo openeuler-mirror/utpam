@@ -6,7 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bytemuck = "1.20.0"
 
 [lib]
 name = "utpamc"
 crate-type = ["rlib","cdylib"]
+
+
+[features]
+ndebug = []

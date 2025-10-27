@@ -30,7 +30,7 @@ use std::rc::Rc;
 use utpam::common::*;
 use utpam::common::{UtpamMessage, UtpamResponse};
 use utpam::utpam_overwrite_string;
-
+use utpamc::*;
 //fn read_string
 use nix::sys::termios::LocalFlags;
 use nix::sys::termios::Termios;
@@ -364,7 +364,7 @@ struct MyStruct {
 }
 type pamc_bp_t = Option<Box<MyStruct>>;
 //type pamc_bp_t = Vec<MyStruct>;
-type pam_binary_handler_fn_t = fn(appdata: Option<Box<dyn Any>>, prompt_p: *mut pamc_bp_t) -> i32;
+type pam_binary_handler_fn_t = fn(appdata: Option<Rc<dyn Any>>, prompt_p: &mut pamc_bp_t) -> i32;
 static pam_binary_handler_fn: Option<pam_binary_handler_fn_t> = None;
 
 type pam_binary_handler_free_t =
@@ -446,9 +446,28 @@ pub fn misc_conv(
                         break 'failed_conversation;
                     }
 
-                    //--------------------未完成的宏,只实现了部分(PAM_BP_RENEW)
-                    //PAM_BP_RENEW(&binary_prompt,PAM_BP_RCONTROL(msgm[count]->msg),PAM_BP_LENGTH(msgm[count]->msg));
-                    //PAM_BP_FILL(binary_prompt, 0, PAM_BP_LENGTH(msgm[count]->msg),PAM_BP_RDATA(msgm[count]->msg));
+                    PAM_BP_RENEW!(
+                        &mut binary_prompt,
+                        PAM_BP_RCONTROL!(&msgm[count].msg),
+                        PAM_BP_LENGTH!(&msgm[count].msg)
+                    );
+                    PAM_BP_FILL!(
+                        &mut binary_prompt,
+                        0,
+                        PAM_BP_LENGTH!(&msgm[count].msg),
+                        PAM_BP_RDATA!(&msgm[count].msg)
+                    );
+
+                    if let Some(func) = pam_binary_handler_fn {
+                        if func(appdata_ptr.clone(), &mut binary_prompt) != PAM_SUCCESS as i32
+                            || binary_prompt.is_none()
+                        {
+                            break 'failed_conversation;
+                        }
+                    } else {
+                        break 'failed_conversation;
+                    }
+
                     if let Some(boxed_mystruct) = binary_prompt {
                         let mystruct = *boxed_mystruct;
                         string.push(mystruct.length.to_string());
@@ -457,7 +476,7 @@ pub fn misc_conv(
                         string.clear();
                     }
                     //string = binary_prompt;
-                    binary_prompt = None;
+                    //binary_prompt = None;
                 }
                 _ => {
                     //let res = write!(io::stderr(),"erroneous conversation ({})\n",msgm[count].msg_style);

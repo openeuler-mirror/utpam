@@ -138,7 +138,7 @@ fn utpam_dispatch_aux(
         let action;
         if use_cached_chain != PAM_PLEASE_FREEZE {
             //获取缓存的值
-            cached_retval = h.get_cached_retval();
+            cached_retval = utpamh.get_cached_retval();
 
             if cached_retval == _PAM_INVALID_RETVAL {
                 D!(
@@ -154,7 +154,7 @@ fn utpam_dispatch_aux(
                 }
             }
         } else {
-            h.set_cached_retval(retval as i8);
+            utpamh.set_cached_retval(retval as i8);
             cached_retval = retval as i8;
         }
 

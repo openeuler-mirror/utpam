@@ -53,7 +53,7 @@ pub fn utpam_setcred(utpamh: &mut Option<Box<UtpamHandle>>, mut flags: u32) -> u
         return PAM_SYSTEM_ERR;
     }
 
-    if flags != 0 {
+    if flags == 0 {
         flags = PAM_ESTABLISH_CRED;
     }
 

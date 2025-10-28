@@ -140,6 +140,7 @@ pub struct UtpamHandle {
     pub(super) audit_state: isize,
     pub(super) authtok_verified: i32,
     pub(super) confdir: PathBuf,
+    pub(super) cached_retval: Rc<RefCell<i8>>, //用来缓存模块的返回值
 }
 
 impl UtpamHandle {
@@ -150,6 +151,7 @@ impl UtpamHandle {
         user: Option<String>,
     ) -> Self {
         UtpamHandle {
+            cached_retval: Rc::new(RefCell::new(0)),
             authtok: String::default(),
             pam_conversation,
             caller_is: 0,
@@ -212,6 +214,14 @@ impl UtpamHandle {
             authtok_verified: 0,
             confdir,
         }
+    }
+    //设置cached_retval 字段的值
+    pub fn set_cached_retval(&self, value: i8) {
+        *self.cached_retval.borrow_mut() = value;
+    }
+    //获取cached_retval 字段的值
+    pub fn get_cached_retval(&self) -> i8 {
+        *self.cached_retval.borrow()
     }
 }
 
@@ -280,24 +290,12 @@ pub struct Handler {
     pub(super) handler_type: u8,
     pub(super) func: Option<CallSpi>,
     pub(super) actions: Vec<i32>,
-    pub(super) cached_retval: Rc<RefCell<i8>>, //用于实现内部可变性和共享所有权
     pub(super) argc: i32,
     pub(super) argv: Vec<String>,
     pub(super) next: Option<Box<Handler>>,
     pub(super) mod_name: String,
     pub(super) stack_level: i32,
     pub(super) grantor: isize,
-}
-
-impl Handler {
-    //设置cached_retval 字段的值
-    pub fn set_cached_retval(&self, value: i8) {
-        *self.cached_retval.borrow_mut() = value;
-    }
-    //获取cached_retval 字段的值
-    pub fn get_cached_retval(&self) -> i8 {
-        *self.cached_retval.borrow()
-    }
 }
 
 #[derive(Debug, Clone, Copy)]

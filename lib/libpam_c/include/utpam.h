@@ -24,3 +24,5 @@ int pam_setcred(pam_handle_t *pamh, int flags);
 int pam_open_session(pam_handle_t *pamh, int flags);
 int pam_close_session(pam_handle_t *pamh, int flags);
 int pam_chauthtok(pam_handle_t *pamh, int flags);
+
+const char *pam_strerror(int errnum);

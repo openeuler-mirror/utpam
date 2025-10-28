@@ -15,7 +15,7 @@ use crate::{pam_syslog, D, PAM_ACTION_IS_JUMP, UTPAM_FROM_MODULE, UTPAM_TO_APP, 
 use std::any::Any;
 
 #[cfg(feature = "debug")]
-use crate::utpam_strerror::pam_strerror;
+use crate::utpam_strerror::utpam_strerror;
 
 const PAM_UNDEF: i32 = 0;
 const PAM_POSITIVE: i32 = 1;
@@ -116,7 +116,7 @@ fn utpam_dispatch_aux(
                     utpamh.mod_name = String::default();
                     utpamh.mod_argc = 0;
                     utpamh.mod_argv = vec![];
-                    D!("module returned: {}", pam_strerror(retval));
+                    D!("module returned: {}", utpam_strerror(retval));
                 }
                 None => {
                     D!("module function is not defined, indicating failure");

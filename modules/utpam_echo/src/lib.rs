@@ -84,7 +84,7 @@ fn replace_and_print(utpamh: &UtpamHandle, mesg: &str) -> u8 {
     PAM_SUCCESS
 }
 
-//在 PAM 认证过程的不同阶段输出指定的消息
+//在UTPAM 认证过程的不同阶段输出指定的消息
 fn utpam_echo(
     mut utpamh: &mut Option<Box<UtpamHandle>>,
     flags: u32,

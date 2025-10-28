@@ -11,6 +11,7 @@ libloading = "0.8.5"
 libutpam = { path = "../libutpam" }
 log = "0.4.22"
 tklog = "0.2.4"
+lazy_static = "1.5.0"
 
 [lib]
 name = "pam_c"

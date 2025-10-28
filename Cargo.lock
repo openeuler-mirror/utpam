@@ -269,6 +269,7 @@ dependencies = [
 name = "libpam_c"
 version = "0.1.0"
 dependencies = [
+ "lazy_static",
  "libc",
  "libloading",
  "libutpam",

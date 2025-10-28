@@ -28,7 +28,7 @@ macro_rules! pam_error {
 macro_rules! pam_info {
     ($utpamh:expr, $fmt:expr, $($args:tt),*) => {{
         let msgbuf = format!($fmt, $($args),*);
-        pam_vprompt($utpamh, PAM_TEXT_INFO, Vec::new(), msgbuf);
+        pam_vprompt($utpamh, PAM_TEXT_INFO, String::new(), msgbuf);
     }
 }
 }

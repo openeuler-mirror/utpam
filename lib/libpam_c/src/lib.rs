@@ -11,3 +11,4 @@ pub mod pam_password;
 pub mod pam_private;
 pub mod pam_session;
 pub mod pam_start;
+pub mod pam_strerror;

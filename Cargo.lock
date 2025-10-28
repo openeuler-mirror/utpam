@@ -660,6 +660,7 @@ name = "utpam_rootok"
 version = "0.1.0"
 dependencies = [
  "libutpam",
+ "users",
 ]
 
 [[package]]

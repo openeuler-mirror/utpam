@@ -28,4 +28,3 @@ pub extern "C" fn pam_strerror(errnum: i32) -> *const c_char {
 
     ptr
 }
-

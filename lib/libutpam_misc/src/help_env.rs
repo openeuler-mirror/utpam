@@ -11,20 +11,16 @@ use utpam::utpam_env::{utpam_getenv, utpam_putenv};
 #[cfg(feature = "debug")]
 use utpam::common::{utpam_output_debug, utpam_output_debug_info};
 #[cfg(feature = "debug")]
-use utpam::utpam_strerror::pam_strerror;
+use utpam::utpam_strerror::utpam_strerror;
 use utpam::D;
 
-//将用户环境变量复制到utpamh，判断用户环境变量指针及指针内容是否为空，如不为空，使用
-//pam_putenv函数添加到pamh中；
-//spi；
-//遗留部分为debug，fn pam_putenv,fn pam_strerror,
 #[no_mangle]
 pub fn utpam_misc_paste_env(utpamh: &mut Option<Box<UtpamHandle>>, user_env: &[&str]) -> u8 {
     for env_var in user_env.iter().filter(|s| !s.is_empty()) {
         D!("uploading: {}", env_var);
         let retval: u8 = utpam_putenv(utpamh, env_var);
         if retval != PAM_SUCCESS {
-            D!("error setting {:?}: {:?}", env_var, pam_strerror(retval));
+            D!("error setting {:?}: {:?}", env_var, utpam_strerror(retval));
             return retval;
         }
     }

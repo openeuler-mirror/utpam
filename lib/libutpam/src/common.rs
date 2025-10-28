@@ -86,7 +86,7 @@ pub const PAM_MAX_MSG_SIZE: usize = 512;
 
 //日志存放在当前目录下，pam.log
 //之后可以更改该参数，比如/var/log/secure
-pub const PAM_LOG_FILE: &str = "pam.log";
+pub const PAM_LOG_FILE: &str = "utpam.log";
 
 pub const PAM_TOKEN_RETURNS: [&str; 33] = [
     "success",
@@ -211,8 +211,8 @@ impl UtpamXAuthData {
     }
 }
 
-#[cfg(feature = "debug")]
 /// 输出调试信息上下文
+#[cfg(feature = "debug")]
 pub fn utpam_output_debug_info(file: &str, fn_name: &str, line: u32) {
     use std::fs::OpenOptions;
     use std::io::Write;

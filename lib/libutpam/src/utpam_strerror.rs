@@ -6,7 +6,7 @@
 use crate::common::*;
 
 #[no_mangle]
-pub fn pam_strerror(errnum: u8) -> &'static str {
+pub fn utpam_strerror(errnum: u8) -> &'static str {
     match errnum {
         PAM_SUCCESS => "Success",
         PAM_ABORT => "Critical error - immediate abort",

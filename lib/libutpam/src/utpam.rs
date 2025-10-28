@@ -148,7 +148,7 @@ impl UtpamHandle {
         service_name: String,
         pam_conversation: Rc<UtpamConv>,
         confdir: PathBuf,
-        user: Option<String>,
+        user: String,
     ) -> Self {
         UtpamHandle {
             cached_retval: Rc::new(RefCell::new(0)),
@@ -158,7 +158,7 @@ impl UtpamHandle {
             oldauthtok: String::default(),
             prompt: None,
             service_name,
-            user: String::default(),
+            user,
             rhost: String::default(),
             ruser: String::default(),
             tty: String::default(),

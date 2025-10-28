@@ -75,6 +75,8 @@ fn utpam_start_internal(
         }
     };
 
+    let user = user.unwrap_or_default();
+
     let mut pamh = Box::new(UtpamHandle::new(
         service_name,
         utpam_conversation,

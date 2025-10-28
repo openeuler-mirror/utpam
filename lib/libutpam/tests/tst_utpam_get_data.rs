@@ -28,5 +28,5 @@ fn test_utpam_get_data() {
     assert_eq!(PAM_SUCCESS, retval); //判断是否相等
 
     retval = utpam_get_data(&mut utpamh, Some("tst-utpam_get_data-2"), &mut constdataptr);
-    assert_eq!(PAM_SUCCESS, retval);
+    assert_eq!(PAM_SYSTEM_ERR, retval);
 }

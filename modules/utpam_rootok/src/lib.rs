@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
-use std::process;
+use users::get_current_uid;
 use utpam::common::*;
 use utpam::utpam::*;
 
@@ -31,7 +31,7 @@ fn _pam_parse(
 
 fn check_for_root(mut _utpamh: &mut Option<Box<UtpamHandle>>, ctrl: u8) -> u8 {
     let mut retval = PAM_AUTH_ERR;
-    if process::id() == 0 {
+    if get_current_uid() == 0 {
         retval = PAM_SUCCESS;
     }
 

@@ -198,3 +198,17 @@ macro_rules! PAM_BP_FILL {
         wdata[offset..offset + length].copy_from_slice(&data[..length]);
     }};
 }
+
+#[macro_export]
+macro_rules! WIFEXITED {
+    ($status:expr) => {
+        $status & 0x7F
+    };
+}
+
+#[macro_export]
+macro_rules! WEXITSTATUS {
+    ($status:expr) => {
+        ($status & 0xff00) >> 8
+    };
+}

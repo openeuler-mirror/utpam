@@ -932,11 +932,11 @@ fn utpam_add_handler(
         Some(mod_name) => mod_name,
         None => return PAM_ABORT,
     };
+    utpamh.cached_retval = Rc::new(RefCell::new(_PAM_INVALID_RETVAL));
     let handler = Handler {
         handler_type,
         func,
         actions: actions.to_owned(),
-        cached_retval: Rc::new(RefCell::new(_PAM_INVALID_RETVAL)),
         argc,
         argv: argv.to_owned(),
         next: None,
@@ -952,11 +952,11 @@ fn utpam_add_handler(
             Some(mod_name) => mod_name,
             None => return PAM_ABORT,
         };
+        utpamh.cached_retval = Rc::new(RefCell::new(_PAM_INVALID_RETVAL));
         let handler = Handler {
             handler_type,
             func: func2,
             actions: actions.to_owned(),
-            cached_retval: Rc::new(RefCell::new(_PAM_INVALID_RETVAL)),
             argc,
             argv: argv.to_owned(),
             next: None,

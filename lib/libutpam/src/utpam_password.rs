@@ -43,7 +43,7 @@ pub fn utpam_chauthtok(utpamh: &mut Option<Box<UtpamHandle>>, flags: u32) -> u8 
     //模块调度
     let mut retval = utpam_dispatch(utpamh, flags | PAM_PRELIM_CHECK, PAM_CHAUTHTOK);
 
-    if utpamh.former.update.to_bool() || retval != PAM_SUCCESS {
+    if utpamh.former.update.to_bool() || retval == PAM_SUCCESS {
         D!("completed check ok: former={:?}", utpamh.former.update);
         utpamh.former.update = UtpamBoolean::UtpamTrue;
         retval = utpam_dispatch(utpamh, flags | PAM_UPDATE_AUTHTOK, PAM_CHAUTHTOK);

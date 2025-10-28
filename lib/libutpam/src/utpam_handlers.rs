@@ -316,7 +316,7 @@ fn utpam_open_config_file(
                 }
             }
         } else {
-            println!("File or directory not found: {:?}", path_buf);
+            D!("File or directory not found: {:?}", path_buf);
         }
     }
 
@@ -361,7 +361,7 @@ fn utpam_load_conf_file(
         //解析配置文件
         retval = utpam_parse_config_file(
             utpamh,
-            file.as_mut().unwrap(),
+            file.as_mut().expect("File is not available."),
             service,
             module_type,
             include_level,
@@ -412,7 +412,6 @@ fn utpam_parse_config_file(
     let mut x = utpam_line_assemble(&mut f, &mut buffer, repl.clone());
     while x > 0 {
         let mut mod_path;
-        //let mut nexttok: Option<String> = None;
         let mut buf = Some(buffer.assembled.as_str());
         let mut res;
         let mut argc = 0;
@@ -513,7 +512,13 @@ fn utpam_parse_config_file(
             );
 
             if requested_module_type != PAM_T_ANY && module_type != requested_module_type {
-                //日志记录
+                D!(
+                    "Skipping config entry: {:?} (requested={}, found={})",
+                    buf,
+                    requested_module_type,
+                    module_type
+                );
+                x = utpam_line_assemble(&mut f, &mut buffer, repl.clone());
                 continue;
             }
 
@@ -910,8 +915,12 @@ fn utpam_add_handler(
                 func = Some(*fun);
             }
             Err(_) => {
-                pam_syslog!(&utpamh, LOG_ERR, "unable to resolve symbol: {}", sym);
-                return PAM_ABORT;
+                log::debug!(
+                    "{}, {:?} unable to resolve symbol: {}",
+                    LOG_ERR,
+                    mod_path,
+                    sym
+                );
             }
         }
     }
@@ -922,8 +931,12 @@ fn utpam_add_handler(
                 func2 = Some(*fun);
             }
             Err(_) => {
-                pam_syslog!(&utpamh, LOG_ERR, "unable to resolve symbol: {}", sym2);
-                return PAM_ABORT;
+                log::debug!(
+                    "{}, {:?} unable to resolve symbol: {}",
+                    LOG_ERR,
+                    mod_path,
+                    sym2
+                );
             }
         }
     }

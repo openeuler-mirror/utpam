@@ -1,40 +1,55 @@
 # utpam
 
 #### 介绍
-utpam is a refactoring of pam.
+utpam是一种用于Linux系统的认证框架。它允许系统管理员定义系统中的不同服务的认证机制，并且可以根据需要组合多种认证方式。utpam通过提供一个统一的接口来处理认证相关的工作，简化了应用程序对用户身份验证的过程。
+
+#### 由来
+utpam是一个旨在使用Rust语言重开发传统pam的项目。传统pam工具使用C语言开发，在系统中被频繁调用，负责处理认证相关的任务。然而，由于C语言本身的限制，传统pam在长期运行中可能会出现内存泄漏等问题，这些问题可能导致安全漏洞或其他不稳定因素。
+鉴于此，utpam项目应运而生。该项目利用Rust语言的强大特性和现代编程实现，旨在克服传统pam在内存管理和安全性方面的一些固有问题。Rust语言强制执行内存安全规则，并能够在编译时检测到诸如缓冲区溢出、空指针解引用等常见错误，从而有效预防潜在的安全隐患。
 
 #### 软件架构
-软件架构说明
+- 模块化设计：每种认证方式都以独立模块实现，支持自定义扩展。
+- 核心库：负责模块加载、配置解析和认证流程。
+- 兼容性：可兼容现有 PAM 配置，便于迁移和集成。
+- 多语言支持：核心以 Rust 实现，接口兼容 C。
 
+#### 主要功能
+■统一认证接口：utpam为不同的应用提供了统一的API，这些应用可以通过调用相同的函数来执行认证操作，而不需要关心底层具体使用的认证机制。
+■灵活性和可扩展性：管理员可以通过配置文件轻松更改应用程序的认证策略,而不需要重新编译或修改应用程序代码。
+■模块化设计：utpam本身由多个独立的模块组成，每个模块负责处理特定类型的认证任务，如用户身份验证、账户管理、会话管理和密码管理。这种模块化的设计允许根据需要选择和组合不同的模块以实现定制化的认证流程。
 
 #### 安装教程
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+1. 安装 Rust 环境（推荐使用 [rustup](https://rustup.rs/)）：
+   ```bash
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+   ```
+2. 克隆仓库：
+   ```bash
+   git clone https://gitee.com/yourname/utpam.git
+   ```
+3. 进入项目目录并编译安装：
+   ```bash
+   cd utpam
+   cargo build --release
+   # 可选：安装到系统目录
+   sudo cp target/release/libutpam.so /usr/local/lib/
+   ```
 
 #### 使用说明
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+1. 编辑配置文件（如 `/etc/utpam.conf`），指定认证模块及顺序。
+2. 在应用或系统服务中集成 utpam，链接 utpam 库。
+3. 使用命令行工具或 API 进行认证操作。
+4. 参考 `libutpam/tests/` 目录下的测试用例，了解接口用法。
 
 #### 参与贡献
 
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
+1. Fork 本仓库
+2. 新建 Feat_xxx 分支
+3. 提交代码
+4. 新建 Pull Request
 
-
-#### 特技
-
-1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2.  Gitee 官方博客 [blog.gitee.com](https://blog.gitee.com)
-3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解 Gitee 上的优秀开源项目
-4.  [GVP](https://gitee.com/gvp) 全称是 Gitee 最有价值开源项目，是综合评定出的优秀开源项目
-5.  Gitee 官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6.  Gitee 封面人物是一档用来展示 Gitee 会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
 
 ## 开源许可证
 utpam 在 [GPL-2.0-or-later](LICENSE)下发布。

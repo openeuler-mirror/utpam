@@ -14,9 +14,9 @@ Therefore, the utpam project was created. It leverages Rust's powerful features 
 - Multi-language support: Core implemented in Rust, with C-compatible interfaces.
 
 #### Main Features
-■ Unified authentication interface: utpam provides a unified API for different applications, allowing them to perform authentication operations by calling the same functions without worrying about the underlying mechanisms.
-■ Flexibility and extensibility: Administrators can easily change authentication policies for applications via configuration files, without recompiling or modifying application code.
-■ Modular design: utpam consists of multiple independent modules, each handling a specific type of authentication task, such as user authentication, account management, session management, and password management. This modular design allows for customized authentication flows by selecting and combining different modules as needed.
+- Unified authentication interface: utpam provides a unified API for different applications, allowing them to perform authentication operations by calling the same functions without worrying about the underlying mechanisms.
+- Flexibility and extensibility: Administrators can easily change authentication policies for applications via configuration files, without recompiling or modifying application code.
+- Modular design: utpam consists of multiple independent modules, each handling a specific type of authentication task, such as user authentication, account management, session management, and password management. This modular design allows for customized authentication flows by selecting and combining different modules as needed.
 
 #### Installation
 

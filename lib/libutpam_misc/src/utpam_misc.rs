@@ -3,7 +3,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
-#![allow(clippy::never_loop)]
+
+#![allow(clippy::never_loop, unexpected_cfgs)]
 
 use utpam::common::*;
 use utpam::common::{UtpamMessage, UtpamResponse};

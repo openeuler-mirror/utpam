@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
+
 use std::env;
 use std::path::PathBuf;
 use std::rc::Rc;

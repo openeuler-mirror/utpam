@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
+
 use std::ffi::CString;
 use std::os::raw::c_char;
 use std::sync::Mutex;

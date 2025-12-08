@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
+
 use std::ffi::CString;
 use utpam::common::{PAM_BUF_ERR, PAM_PERM_DENIED, PAM_SUCCESS};
 use utpam::utpam::UtpamHandle;

@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
+
 use crate::common::PAM_SYSTEM_ERR;
 use crate::utpam::{UtpamHandle, PAM_CALLED_FROM_MODULE, PAM_CLOSE_SESSION, PAM_OPEN_SESSION};
 use crate::utpam_dispatch::utpam_dispatch;

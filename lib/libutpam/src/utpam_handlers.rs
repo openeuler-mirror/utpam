@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
+
 #![allow(clippy::too_many_arguments)]
 
 use crate::common::*;
@@ -259,7 +260,7 @@ pub fn utpam_init_handlers(utpamh: &mut Box<UtpamHandle>) -> u8 {
 
 ///检查指定路径是否存在且是目录
 fn check_directory(pamh_confdir: &str) -> bool {
-    metadata(pamh_confdir).map_or(false, |md| md.file_type().is_dir())
+    metadata(pamh_confdir).is_ok_and(|md| md.file_type().is_dir())
 }
 
 ///打开配置文件

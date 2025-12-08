@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
+
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
@@ -32,7 +33,13 @@ pub fn utpam_line_assemble(
     repl: String,
 ) -> i32 {
     for line_result in reader.lines() {
-        let line = line_result.unwrap();
+        let line = match line_result {
+            Ok(l) => l,
+            Err(e) => {
+                eprintln!("utpam_line_assemble read error: {e}");
+                return -1; // 读取失败，避免panic
+            }
+        };
 
         // 跳过空行和注释行
         if line.is_empty() || line.starts_with('#') {

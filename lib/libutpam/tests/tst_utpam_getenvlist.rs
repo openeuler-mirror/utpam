@@ -3,6 +3,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
+
+#![allow(clippy::nonminimal_bool, clippy::needless_range_loop, clippy::op_ref)]
+
 use std::rc::Rc;
 use utpam::common::{UtpamConv, PAM_SUCCESS};
 use utpam::utpam::UtpamHandle;

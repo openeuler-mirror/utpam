@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
+
 #![allow(dead_code, unused_mut, unused_variables)]
 ///存放utpam公共的结构体和常量
 use std::any::Any;
@@ -86,7 +87,7 @@ pub const PAM_MAX_MSG_SIZE: usize = 512;
 
 //日志存放在当前目录下，pam.log
 //之后可以更改该参数，比如/var/log/secure
-pub const PAM_LOG_FILE: &str = "utpam.log";
+pub const PAM_LOG_FILE: &str = "/var/log/utpam/utpam.log";
 
 pub const PAM_TOKEN_RETURNS: [&str; 33] = [
     "success",

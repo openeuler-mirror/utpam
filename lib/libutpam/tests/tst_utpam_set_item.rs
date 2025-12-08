@@ -3,6 +3,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
+
+#![allow(clippy::unnecessary_mut_passed)]
 use std::any::Any;
 use std::rc::Rc;
 use utpam::common::*;

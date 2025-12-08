@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
+
 /*
  * This common file provides the prototypes for the UTPAM client API
  */
@@ -197,18 +198,4 @@ macro_rules! PAM_BP_FILL {
         let wdata = PAM_BP_WDATA!(prompt);
         wdata[offset..offset + length].copy_from_slice(&data[..length]);
     }};
-}
-
-#[macro_export]
-macro_rules! WIFEXITED {
-    ($status:expr) => {
-        $status & 0x7F
-    };
-}
-
-#[macro_export]
-macro_rules! WEXITSTATUS {
-    ($status:expr) => {
-        ($status & 0xff00) >> 8
-    };
 }

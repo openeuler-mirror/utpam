@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
+
 use crate::common::*;
 use crate::utpam::{UtpamHandle, PAM_ENV_CHUNK};
 use crate::utpam_misc::utpam_strdup;
@@ -88,9 +89,11 @@ fn utpam_search_env(env: &UtpamEnviron, name_value: &str, length: usize) -> i32 
          *  如果索引有效，检查字符串是否以 name_value 开头并且第 length 个字符为 '='，
          *  如果条件满足，返回当前索引 i；否则继续遍历
          */
-        if env.list.get(i).map_or(false, |s| {
-            s.starts_with(name_value) && s.chars().nth(length) == Some('=')
-        }) {
+        if env
+            .list
+            .get(i)
+            .is_some_and(|s| s.starts_with(name_value) && s.chars().nth(length) == Some('='))
+        {
             return i as i32; // Found it!
         }
     }

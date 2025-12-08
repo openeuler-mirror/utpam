@@ -3,6 +3,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
+
+#![allow(clippy::no_effect)]
+
 use utpam::common::PAM_SUCCESS;
 use utpam::utpam_account::utpam_acct_mgmt;
 fn tst_utpam_acct_mgmt() -> u8 {

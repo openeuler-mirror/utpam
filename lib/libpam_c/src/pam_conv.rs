@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
+
 #![allow(clippy::unwrap_or_default, clippy::not_unsafe_ptr_arg_deref)]
 use libc::*;
 use std::any::Any;

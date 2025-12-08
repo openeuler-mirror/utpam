@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
+
 #![allow(unused_assignments)]
 #![allow(clippy::borrow_interior_mutable_const)]
 

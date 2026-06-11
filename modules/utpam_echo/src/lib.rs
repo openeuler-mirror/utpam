@@ -4,9 +4,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#![allow(dead_code, unused_mut)]
-#![allow(unused_variables)]
-
 use std::{any::Any, fs::OpenOptions, os::unix::prelude::MetadataExt};
 use utpam::common::*;
 use utpam::utpam::*;
@@ -87,13 +84,13 @@ fn replace_and_print(utpamh: &UtpamHandle, mesg: &str) -> u8 {
 
 //在UTPAM 认证过程的不同阶段输出指定的消息
 fn utpam_echo(
-    mut utpamh: &mut Option<Box<UtpamHandle>>,
+    utpamh: &mut Option<Box<UtpamHandle>>,
     flags: u32,
-    argc: Option<i32>,
+    _argc: Option<i32>,
     argv: Option<Vec<String>>,
 ) -> u8 {
     let mut file: Option<String> = None;
-    let mut retval;
+    let retval;
 
     let utpamh = match utpamh {
         Some(ref pamh) => pamh,
@@ -173,7 +170,7 @@ fn utpam_echo(
 //用户认证
 #[no_mangle]
 pub fn utpam_sm_authenticate(
-    mut utpamh: &mut Option<Box<UtpamHandle>>,
+    utpamh: &mut Option<Box<UtpamHandle>>,
     flags: u32,
     argc: Option<i32>,
     argv: Option<Vec<String>>,
@@ -195,7 +192,7 @@ pub fn utpam_sm_setcred(
 //账户管理
 #[no_mangle]
 pub fn utpam_sm_acct_mgmt(
-    mut utpamh: &mut Option<Box<UtpamHandle>>,
+    utpamh: &mut Option<Box<UtpamHandle>>,
     flags: u32,
     argc: Option<i32>,
     argv: Option<Vec<String>>,
@@ -206,7 +203,7 @@ pub fn utpam_sm_acct_mgmt(
 //打开会话
 #[no_mangle]
 pub fn utpam_sm_open_session(
-    mut utpamh: &mut Option<Box<UtpamHandle>>,
+    utpamh: &mut Option<Box<UtpamHandle>>,
     flags: u32,
     argc: Option<i32>,
     argv: Option<Vec<String>>,
@@ -228,7 +225,7 @@ pub fn utpam_sm_close_session(
 //密码管理
 #[no_mangle]
 pub fn utpam_sm_chauthtok(
-    mut utpamh: &mut Option<Box<UtpamHandle>>,
+    utpamh: &mut Option<Box<UtpamHandle>>,
     flags: u32,
     argc: Option<i32>,
     argv: Option<Vec<String>>,

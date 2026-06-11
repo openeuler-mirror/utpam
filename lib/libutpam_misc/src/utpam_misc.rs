@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#![allow(clippy::never_loop, unexpected_cfgs)]
-
 use utpam::common::*;
 use utpam::common::{UtpamMessage, UtpamResponse};
 use utpam::utpam_overwrite_string;
@@ -24,6 +22,7 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
+use utpam_sys::signal as utpam_signal;
 use zeroize::Zeroize;
 
 #[cfg(feature = "debug")]
@@ -110,9 +109,7 @@ macro_rules! _set_fn {
 fn reset_alarm(o_ptr: Option<SigAction>) {
     alarm::set(0);
     if let Some(o_ptr) = o_ptr {
-        unsafe {
-            signal::sigaction(Signal::SIGALRM, &o_ptr).expect("error");
-        }
+        utpam_signal::sigaction(Signal::SIGALRM, &o_ptr).expect("error");
     }
 }
 
@@ -131,11 +128,9 @@ fn set_alarm(delay: u64, mut o_ptr: Option<SigAction>) -> i32 {
     );
 
     // 注册新的信号处理函数，并返回旧的信号处理程序
-    let old_action = unsafe {
-        match signal::sigaction(Signal::SIGALRM, &new_action) {
-            Ok(old) => old,
-            Err(_) => return 1,
-        }
+    let old_action = match utpam_signal::sigaction(Signal::SIGALRM, &new_action) {
+        Ok(old) => old,
+        Err(_) => return 1,
     };
 
     match alarm::set(delay as u32) {
@@ -144,7 +139,7 @@ fn set_alarm(delay: u64, mut o_ptr: Option<SigAction>) -> i32 {
             // 如果设置定时器失败，恢复之前的信号处理程序
             if let Some(ref mut o_ptr) = o_ptr {
                 *o_ptr = old_action;
-                if unsafe { signal::sigaction(Signal::SIGALRM, o_ptr) }.is_err() {
+                if utpam_signal::sigaction(Signal::SIGALRM, o_ptr).is_err() {
                     return 1;
                 }
             };
@@ -405,97 +400,101 @@ pub fn misc_conv(
 
     D!("entering conversation function");
 
-    'failed_conversation: loop {
-        loop {
-            if count >= num_msg {
+    let mut failed_conversation = false;
+    while count < num_msg {
+        let mut string: String = String::new();
+        let nc: i32;
+
+        match msgm[count].msg_style {
+            PAM_PROMPT_ECHO_OFF => {
+                nc = read_string(CONV_ECHO_OFF, msgm[count].msg.clone(), &mut string);
+                if nc < 0 {
+                    failed_conversation = true;
+                    break;
+                }
+            }
+            PAM_PROMPT_ECHO_ON => {
+                nc = read_string(CONV_ECHO_ON, msgm[count].msg.clone(), &mut string);
+                if nc < 0 {
+                    failed_conversation = true;
+                    break;
+                }
+            }
+            PAM_ERROR_MSG => {
+                let res = writeln!(io::stderr(), "{:?}", msgm[count].msg);
+                if res.is_err() {
+                    failed_conversation = true;
+                    break;
+                }
+            }
+            PAM_TEXT_INFO => {
+                let res = writeln!(io::stdout(), "{:?}", msgm[count].msg);
+                if res.is_err() {
+                    failed_conversation = true;
+                    break;
+                }
+            }
+            PAM_BINARY_PROMPT => {
+                let mut binary_prompt: PamcBpT = None;
+
+                if msgm[count].msg.is_empty() || get_fn!(PAM_BINARY_HANDLER_FN).is_none() {
+                    failed_conversation = true;
+                    break;
+                }
+
+                PAM_BP_RENEW!(
+                    &mut binary_prompt,
+                    PAM_BP_RCONTROL!(&msgm[count].msg),
+                    PAM_BP_LENGTH!(&msgm[count].msg)
+                );
+                PAM_BP_FILL!(
+                    &mut binary_prompt,
+                    0,
+                    PAM_BP_LENGTH!(&msgm[count].msg),
+                    PAM_BP_RDATA!(&msgm[count].msg)
+                );
+
+                if let Some(func) = get_fn!(PAM_BINARY_HANDLER_FN) {
+                    if func(appdata_ptr.clone(), &mut binary_prompt) != PAM_SUCCESS as i32
+                        || binary_prompt.is_none()
+                    {
+                        failed_conversation = true;
+                        break;
+                    }
+                } else {
+                    failed_conversation = true;
+                    break;
+                }
+
+                if let Some(boxed_mystruct) = binary_prompt {
+                    let mystruct = *boxed_mystruct;
+                    string = mystruct.to_string();
+                } else {
+                    string.clear();
+                }
+            }
+            _ => {
+                writeln!(
+                    io::stderr(),
+                    "erroneous conversation ({})",
+                    msgm[count].msg_style
+                )
+                .expect("写入 stderr 失败");
+                failed_conversation = true;
                 break;
             }
-
-            let mut string: String = String::new();
-            let nc: i32;
-
-            match msgm[count].msg_style {
-                PAM_PROMPT_ECHO_OFF => {
-                    nc = read_string(CONV_ECHO_OFF, msgm[count].msg.clone(), &mut string);
-                    if nc < 0 {
-                        break 'failed_conversation;
-                    }
-                }
-                PAM_PROMPT_ECHO_ON => {
-                    nc = read_string(CONV_ECHO_ON, msgm[count].msg.clone(), &mut string);
-                    if nc < 0 {
-                        break 'failed_conversation;
-                    }
-                }
-                PAM_ERROR_MSG => {
-                    let res = writeln!(io::stderr(), "{:?}", msgm[count].msg);
-                    if res.is_err() {
-                        break 'failed_conversation;
-                    }
-                }
-                PAM_TEXT_INFO => {
-                    let res = writeln!(io::stdout(), "{:?}", msgm[count].msg);
-                    if res.is_err() {
-                        break 'failed_conversation;
-                    }
-                }
-                PAM_BINARY_PROMPT => {
-                    let mut binary_prompt: PamcBpT = None;
-
-                    if msgm[count].msg.is_empty() || get_fn!(PAM_BINARY_HANDLER_FN).is_none() {
-                        break 'failed_conversation;
-                    }
-
-                    PAM_BP_RENEW!(
-                        &mut binary_prompt,
-                        PAM_BP_RCONTROL!(&msgm[count].msg),
-                        PAM_BP_LENGTH!(&msgm[count].msg)
-                    );
-                    PAM_BP_FILL!(
-                        &mut binary_prompt,
-                        0,
-                        PAM_BP_LENGTH!(&msgm[count].msg),
-                        PAM_BP_RDATA!(&msgm[count].msg)
-                    );
-
-                    if let Some(func) = get_fn!(PAM_BINARY_HANDLER_FN) {
-                        if func(appdata_ptr.clone(), &mut binary_prompt) != PAM_SUCCESS as i32
-                            || binary_prompt.is_none()
-                        {
-                            break 'failed_conversation;
-                        }
-                    } else {
-                        break 'failed_conversation;
-                    }
-
-                    if let Some(boxed_mystruct) = binary_prompt {
-                        let mystruct = *boxed_mystruct;
-                        string = mystruct.to_string();
-                    } else {
-                        string.clear();
-                    }
-                }
-                _ => {
-                    writeln!(
-                        io::stderr(),
-                        "erroneous conversation ({})",
-                        msgm[count].msg_style
-                    )
-                    .expect("写入 stderr 失败");
-                    break 'failed_conversation;
-                }
-            }
-
-            if !string.is_empty() {
-                reply[count].resp_retcode = 0;
-                reply[count].resp.clone_from(&string);
-                string.clear();
-            }
-            count += 1;
         }
 
-        *response = Some(reply);
+        if !string.is_empty() {
+            reply[count].resp_retcode = 0;
+            reply[count].resp.clone_from(&string);
+            string.clear();
+        }
+        count += 1;
+    }
 
+    if !failed_conversation {
+        *response = Some(reply);
         return PAM_SUCCESS;
     }
 

@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#![allow(dead_code, unused_mut, unused_variables)]
 ///存放utpam公共的结构体和常量
 use std::any::Any;
 use std::fmt::{Debug, Formatter, Result};

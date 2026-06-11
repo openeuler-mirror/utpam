@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#![allow(clippy::collapsible_if)]
 ///模块调度
 use crate::common::*;
 use crate::utpam::*;
@@ -180,12 +179,12 @@ fn utpam_dispatch_aux(
                 status = substates[stack_level as usize].status;
             }
             PAM_ACTION_OK | PAM_ACTION_DONE => {
-                if impression == PAM_UNDEF || (impression == PAM_POSITIVE && status == PAM_SUCCESS)
+                if (impression == PAM_UNDEF
+                    || (impression == PAM_POSITIVE && status == PAM_SUCCESS))
+                    && (retval != PAM_IGNORE || cached_retval == retval as i8)
                 {
-                    if retval != PAM_IGNORE || cached_retval == retval as i8 {
-                        impression = PAM_POSITIVE;
-                        status = retval;
-                    }
+                    impression = PAM_POSITIVE;
+                    status = retval;
                 }
                 if impression == PAM_POSITIVE {
                     if retval == PAM_SUCCESS {
@@ -211,20 +210,17 @@ fn utpam_dispatch_aux(
             }
             PAM_ACTION_IGNORE => {}
             _ => {
-                if PAM_ACTION_IS_JUMP!(action) {
-                    if use_cached_chain == 1 {
-                        if impression == PAM_UNDEF
-                            || (impression == PAM_POSITIVE && status == PAM_SUCCESS)
-                        {
-                            if retval != PAM_IGNORE || cached_retval == retval as i8 {
-                                if impression == PAM_UNDEF && retval == PAM_SUCCESS {
-                                    h.grantor = 1;
-                                }
-                                impression = PAM_POSITIVE;
-                                status = retval;
-                            }
-                        }
+                if PAM_ACTION_IS_JUMP!(action)
+                    && use_cached_chain == 1
+                    && (impression == PAM_UNDEF
+                        || (impression == PAM_POSITIVE && status == PAM_SUCCESS))
+                    && (retval != PAM_IGNORE || cached_retval == retval as i8)
+                {
+                    if impression == PAM_UNDEF && retval == PAM_SUCCESS {
+                        h.grantor = 1;
                     }
+                    impression = PAM_POSITIVE;
+                    status = retval;
                 }
 
                 if action == 1 {

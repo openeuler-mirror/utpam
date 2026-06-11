@@ -4,9 +4,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#![allow(unused_assignments)]
-#![allow(clippy::borrow_interior_mutable_const)]
-
 use crate::common::PAM_LOG_FILE;
 use crate::utpam::*;
 use colored::*;
@@ -18,14 +15,15 @@ pub fn log_init() {
     let filestr = "{file}".red(); //文件属性标识设置为红色
     let messagestr = ":{message}".blue(); // 信息属性标识修改为蓝色
     let s = format!("{} {} {} {}\n", levelstr, timestr, filestr, messagestr);
+    let log = LOG;
     //设置日志格式
-    LOG.set_formatter(s.as_str()).uselog();
+    log.set_formatter(s.as_str()).uselog();
     // 日志写入到文件
-    LOG.set_cutmode_by_time(PAM_LOG_FILE, MODE::MONTH, 0, false);
+    log.set_cutmode_by_time(PAM_LOG_FILE, MODE::MONTH, 0, false);
     // 设置日志级别为debug
-    LOG.set_level(tklog::LEVEL::Debug);
+    log.set_level(tklog::LEVEL::Debug);
     //开启同步写入日志
-    LOG.set_printmode(tklog::PRINTMODE::PUNCTUAL);
+    log.set_printmode(tklog::PRINTMODE::PUNCTUAL);
 }
 
 fn _pam_choice2str(choice: u8) -> &'static str {
@@ -69,14 +67,13 @@ macro_rules! pam_syslog {
 // eg: pam_unix(sshd:session):
 // eg: pam_unix(sudo:session):
 pub fn utpam_patching_msgbuf1(utpamh: &UtpamHandle) -> String {
-    let mut msgbuf1: String = String::new();
     let temp_string: String = if !utpamh.service_name.is_empty() {
         utpamh.service_name.to_string()
     } else {
         "<unknown>".to_string()
     };
 
-    msgbuf1 = format!(
+    let msgbuf1 = format!(
         "{}({}:{}):",
         &utpamh.mod_name,
         temp_string,

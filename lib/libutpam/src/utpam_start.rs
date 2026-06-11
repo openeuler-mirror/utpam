@@ -4,9 +4,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#![allow(dead_code, unused_mut)]
-#![allow(unused_variables)]
-
 use crate::common::*;
 use crate::parse::*;
 use crate::utpam::{UtpamHandle, PAM_CALLED_FROM_APP};
@@ -21,7 +18,7 @@ pub fn utpam_start(
     service_name: String,
     user: Option<String>,
     utpam_conversation: Option<Rc<UtpamConv>>,
-    mut utpamh: &mut Option<Box<UtpamHandle>>,
+    utpamh: &mut Option<Box<UtpamHandle>>,
 ) -> u8 {
     utpam_start_internal(service_name, user, utpam_conversation, None, utpamh)
 }
@@ -31,7 +28,7 @@ pub fn utpam_start_confdir(
     user: Option<String>,
     utpam_conversation: Option<Rc<UtpamConv>>,
     confdir: PathBuf,
-    mut utpamh: &mut Option<Box<UtpamHandle>>,
+    utpamh: &mut Option<Box<UtpamHandle>>,
 ) -> u8 {
     utpam_start_internal(
         service_name,
@@ -47,7 +44,7 @@ fn utpam_start_internal(
     user: Option<String>,
     utpam_conversation: Option<Rc<UtpamConv>>,
     confdir: Option<PathBuf>,
-    mut utpamh: &mut Option<Box<UtpamHandle>>,
+    utpamh: &mut Option<Box<UtpamHandle>>,
 ) -> u8 {
     //初始化日志
     log_init();

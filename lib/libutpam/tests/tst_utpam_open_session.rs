@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#![allow(clippy::no_effect)]
-
 use utpam::common::PAM_SUCCESS;
 use utpam::utpam_session::utpam_open_session;
 fn tst_utpam_open_session() -> u8 {
@@ -13,7 +11,6 @@ fn tst_utpam_open_session() -> u8 {
 
     if retval == PAM_SUCCESS {
         println!("utpam_open_session (NULL, 0) returned PAM_SUCCESS");
-        1;
     }
     0
 }

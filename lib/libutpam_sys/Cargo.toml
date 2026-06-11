@@ -1,0 +1,21 @@
+[package]
+name = "libutpam_sys"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+libc = "0.2"
+libloading = { version = "0.8.5", optional = true }
+nix = { version = "0.29", features = ["signal"], optional = true }
+
+[features]
+# Dynamic loader wrappers (libloading)
+dl = ["dep:libloading"]
+# Signal/sigaction wrappers (nix)
+signal = ["dep:nix"]
+
+default = []
+
+[lib]
+name = "utpam_sys"
+crate-type = ["rlib"]

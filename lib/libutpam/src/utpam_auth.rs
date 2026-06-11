@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#![allow(unused_variables)]
 use crate::common::*;
 use crate::utpam::*;
 use crate::utpam_delay::utpam_await_timer;

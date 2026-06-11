@@ -7,6 +7,7 @@ members = [
     "lib/libutpam_misc", 
     "lib/libutpamc",
     "lib/libpam_c",
+    "lib/libutpam_sys",
     "modules/utpam_deny", 
     "modules/utpam_echo",
     "modules/utpam_rootok",

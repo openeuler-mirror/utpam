@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#![allow(clippy::nonminimal_bool, clippy::needless_range_loop, clippy::op_ref)]
-
 use std::rc::Rc;
 use utpam::common::{UtpamConv, PAM_SUCCESS};
 use utpam::utpam::UtpamHandle;
@@ -28,7 +26,7 @@ fn tst_utpam_getenvlist() -> u8 {
 
     /* 1: Call with NULL as pam handle */
     ptr = utpam_getenvlist(&mut None);
-    if !ptr.is_none() {
+    if ptr.is_some() {
         println!("utpam_getenvlist (NULL) does not return NULL");
         return 1;
     }
@@ -57,10 +55,10 @@ fn tst_utpam_getenvlist() -> u8 {
     }
 
     /* set environment variable */
-    for i in 0..3 {
-        retval = utpam_putenv(&mut utpamh, ENVVALS[i]);
+    for env in ENVVALS {
+        retval = utpam_putenv(&mut utpamh, env);
         if retval != PAM_SUCCESS {
-            println!("utpam_putenv (pamh, {}) returned {}", ENVVALS[i], retval);
+            println!("utpam_putenv (pamh, {}) returned {}", env, retval);
             return 1;
         }
     }
@@ -70,7 +68,7 @@ fn tst_utpam_getenvlist() -> u8 {
     match ptr {
         Some(ptr) => {
             for (i, item) in ptr.iter().enumerate() {
-                if item != &ENVVALS[i] {
+                if item != ENVVALS[i] {
                     println!(
                         "utpam_getenvlist returns wrong value: expected: {},got: {}",
                         ENVVALS[i], item

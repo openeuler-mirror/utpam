@@ -117,9 +117,25 @@ pub fn utpam_set_item(utpamh: &mut UtpamHandle, item_type: i8, item: Option<Box<
                 retval = PAM_PERM_DENIED;
             }
         },
-        PAM_FAIL_DELAY => {
-            TRY_SET!(utpamh.fail_delay.delay_fn_ptr, item, Option<DelayFnPtr>);
-        }
+        PAM_FAIL_DELAY => match item {
+            Some(item) => match item.downcast::<Option<DelayFnPtr>>() {
+                Ok(data) => {
+                    utpamh.fail_delay.delay_fn_ptr = *data;
+                }
+                Err(_) => {
+                    println!(
+                        "[{}] [{}] [{}] 类型不匹配：$item和$field的类型需要保持一致",
+                        file!(),
+                        stdext::function_name!(),
+                        line!()
+                    );
+                    return PAM_BAD_ITEM;
+                }
+            },
+            None => {
+                utpamh.fail_delay.delay_fn_ptr = None;
+            }
+        },
         PAM_XDISPLAY => {
             TRY_SET!(utpamh.xdisplay, item, String);
         }

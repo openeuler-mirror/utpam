@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#![allow(dead_code, unused_mut, unused_variables)]
 ///存放libutpam的私有结构体和常量
 use crate::common::{UtpamConv, UtpamXAuthData};
 use crate::utpam_delay::UtpamFailDelay;
@@ -138,6 +137,7 @@ pub struct UtpamHandle {
     pub(super) mod_argc: i32,
     pub(super) mod_argv: Vec<String>,
     pub(super) choice: u8,
+    #[allow(dead_code)]
     pub(super) audit_state: isize,
     pub(super) authtok_verified: i32,
     pub(super) confdir: PathBuf,
@@ -254,7 +254,9 @@ impl UtpamBoolean {
 #[derive(Debug)]
 pub struct Service {
     pub(super) module: Vec<LoadedModule>,
+    #[allow(dead_code)]
     pub(super) modules_allocated: isize,
+    #[allow(dead_code)]
     pub(super) modules_used: i32,
     pub(super) handlers_loaded: isize,
     pub(super) conf: Handlers,

@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#![allow(clippy::too_many_arguments)]
-
 use crate::common::*;
 use crate::utpam::*;
 use crate::utpam_strerror::utpam_strerror;
@@ -596,16 +594,19 @@ fn utpam_parse_config_file(
                 Some(tok) => {
                     if pam_include == 1 {
                         if substack == 1 {
+                            let substack_mod_path = Some(tok.clone());
                             res = utpam_add_handler(
                                 utpamh,
-                                PAM_HT_SUBSTACK,
-                                other,
-                                stack_level,
-                                module_type,
-                                &mut actions,
-                                &Some(tok.clone()),
-                                argc,
-                                &argv,
+                                UtpamAddHandlerParams {
+                                    handler_type: PAM_HT_SUBSTACK,
+                                    other,
+                                    stack_level,
+                                    module_type,
+                                    actions: &mut actions,
+                                    mod_paths: &substack_mod_path,
+                                    argc,
+                                    argv: &argv,
+                                },
                             );
                             if res != PAM_SUCCESS {
                                 pam_syslog!(&utpamh, LOG_ERR, "error adding substack {}", tok);
@@ -668,14 +669,16 @@ fn utpam_parse_config_file(
 
             res = utpam_add_handler(
                 utpamh,
-                handler_type,
-                other,
-                stack_level,
-                module_type,
-                &mut actions,
-                &mod_path,
-                argc,
-                &argv,
+                UtpamAddHandlerParams {
+                    handler_type,
+                    other,
+                    stack_level,
+                    module_type,
+                    actions: &mut actions,
+                    mod_paths: &mod_path,
+                    argc,
+                    argv: &argv,
+                },
             );
             if res != PAM_SUCCESS {
                 let mod_path = match mod_path {
@@ -802,23 +805,24 @@ fn utpam_load_module(
 }
 
 //添加处理程序
-fn utpam_add_handler(
-    utpamh: &mut Box<UtpamHandle>,
+struct UtpamAddHandlerParams<'a> {
     handler_type: u8,
     other: bool,
     stack_level: i32,
     module_type: i32,
-    actions: &mut [i32],
-    mod_paths: &Option<String>,
+    actions: &'a mut [i32],
+    mod_paths: &'a Option<String>,
     argc: i32,
-    argv: &[String],
-) -> u8 {
+    argv: &'a [String],
+}
+
+fn utpam_add_handler(utpamh: &mut Box<UtpamHandle>, params: UtpamAddHandlerParams<'_>) -> u8 {
     D!("called.");
     D!(
         "adding module_type {}, handler_type {}, module {:?}",
-        module_type,
-        handler_type,
-        mod_paths
+        params.module_type,
+        params.handler_type,
+        params.mod_paths
     );
 
     let mut load_module = None;
@@ -827,27 +831,27 @@ fn utpam_add_handler(
     let unknown_module = UNKNOWN_MODULE.to_string();
 
     //处理模块路径
-    let mod_path = match mod_paths {
+    let mod_path = match params.mod_paths {
         Some(s) => s,
         None => &unknown_module,
     };
 
     //根据模块路径获取模块类型
-    if (handler_type == PAM_HT_MODULE || handler_type == PAM_HT_SILENT_MODULE)
-        && mod_paths.is_some()
+    if (params.handler_type == PAM_HT_MODULE || params.handler_type == PAM_HT_SILENT_MODULE)
+        && params.mod_paths.is_some()
     {
         let new_path = PathBuf::from(DEFAULT_MODULE_PATH).join(mod_path);
         if mod_path.starts_with('/') {
             load_module = utpam_load_module(
                 &mut utpamh.handlers.module,
                 mod_path.to_string(),
-                handler_type,
+                params.handler_type,
             );
         } else if new_path.exists() {
             load_module = utpam_load_module(
                 &mut utpamh.handlers.module,
                 new_path.to_string_lossy().to_string(),
-                handler_type,
+                params.handler_type,
             );
         } else {
             pam_syslog!(&utpamh, LOG_ERR, "cannot malloc full mod path",);
@@ -863,14 +867,14 @@ fn utpam_add_handler(
     }
 
     //决定使用哪个处理程序列表
-    let the_handlers = if other {
+    let the_handlers = if params.other {
         &mut utpamh.handlers.other
     } else {
         &mut utpamh.handlers.conf
     };
 
     //匹配处理程序类型
-    let (handler_p, sym, handler_p2, sym2) = match module_type {
+    let (handler_p, sym, handler_p2, sym2) = match params.module_type {
         PAM_T_AUTH => (
             &mut the_handlers.authenticate,
             "utpam_sm_authenticate",
@@ -887,7 +891,7 @@ fn utpam_add_handler(
         PAM_T_PASS => (&mut the_handlers.chauthtok, "utpam_sm_chauthtok", None, ""),
         _ => {
             /* Illegal module type */
-            D!("illegal module type {}", module_type);
+            D!("illegal module type {}", params.module_type);
             return PAM_ABORT;
         }
     };
@@ -948,14 +952,14 @@ fn utpam_add_handler(
     };
     utpamh.cached_retval = Rc::new(RefCell::new(_PAM_INVALID_RETVAL));
     let handler = Handler {
-        handler_type,
+        handler_type: params.handler_type,
         func,
-        actions: actions.to_owned(),
-        argc,
-        argv: argv.to_owned(),
+        actions: params.actions.to_owned(),
+        argc: params.argc,
+        argv: params.argv.to_owned(),
         next: None,
         mod_name: path,
-        stack_level,
+        stack_level: params.stack_level,
         grantor: 0,
     };
     // 将新 Handler 插入链表末尾
@@ -968,14 +972,14 @@ fn utpam_add_handler(
         };
         utpamh.cached_retval = Rc::new(RefCell::new(_PAM_INVALID_RETVAL));
         let handler = Handler {
-            handler_type,
+            handler_type: params.handler_type,
             func: func2,
-            actions: actions.to_owned(),
-            argc,
-            argv: argv.to_owned(),
+            actions: params.actions.to_owned(),
+            argc: params.argc,
+            argv: params.argv.to_owned(),
             next: None,
             mod_name: path,
-            stack_level,
+            stack_level: params.stack_level,
             grantor: 0,
         };
         append_handler(handler_p2, handler);

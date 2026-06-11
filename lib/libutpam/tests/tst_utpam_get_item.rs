@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#![allow(clippy::unnecessary_mut_passed)]
 use std::any::Any;
 use std::rc::Rc;
 use utpam::common::*;
@@ -99,9 +98,9 @@ fn tst_utpam_get_item() -> u8 {
         return 1;
     }
     let mut value: Box<dyn Any> = Box::new(());
-    let mut utpamh = utpamh.unwrap();
+    let utpamh = utpamh.unwrap();
     for item in ITEMS.iter() {
-        retval = utpam_get_item(&mut utpamh, item.map_type, &mut value);
+        retval = utpam_get_item(&utpamh, item.map_type, &mut value);
 
         if retval != item.expected {
             println!(
@@ -112,7 +111,7 @@ fn tst_utpam_get_item() -> u8 {
         }
     }
 
-    retval = utpam_get_item(&mut utpamh, -1, &mut value);
+    retval = utpam_get_item(&utpamh, -1, &mut value);
 
     if retval != PAM_BAD_ITEM {
         println!(

@@ -6,13 +6,11 @@
 
 use crate::utpam::CallSpi;
 use libloading::{Library, Symbol};
+use utpam_sys::dl;
 
 //加载动态库
 pub fn utpam_dlopen(path: String) -> Result<Library, Box<dyn std::error::Error>> {
-    unsafe {
-        let lib = libloading::Library::new(path)?;
-        Ok(lib)
-    }
+    Ok(dl::open_library(path)?)
 }
 
 //从由 handle 指定的已加载库中查找名为 symbol 的符号
@@ -21,10 +19,7 @@ pub fn utpam_dlsym<'a>(
     symbol: &'a [u8],
 ) -> Result<Symbol<'a, CallSpi>, Box<dyn std::error::Error>> {
     if let Some(h) = handle {
-        unsafe {
-            let func: Symbol<CallSpi> = h.get(symbol)?;
-            Ok(func)
-        }
+        Ok(dl::get_symbol::<CallSpi>(h, symbol)?)
     } else {
         Err("Error: handle is None".into())
     }

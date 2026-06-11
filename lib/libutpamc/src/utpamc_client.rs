@@ -4,22 +4,10 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#![allow(
-    unused_imports,
-    non_camel_case_types,
-    unused_variables,
-    unused_mut,
-    unreachable_code,
-    unused_assignments,
-    clippy::needless_return,
-    clippy::unused_unit,
-    clippy::nonminimal_bool
-)]
+#![allow(non_camel_case_types)]
 
 use std::env;
-use std::ffi::{CStr, CString};
-use std::os::raw::c_char;
-use std::ptr;
+use std::ffi::CString;
 use std::ptr::NonNull;
 pub const _PAMC_DEFAULT_TOP_FD: i32 = 10;
 pub const PAMC_SYSTEM_AGENT_PATH: &str = "/lib/pamc:/usr/lib/pamc";
@@ -53,17 +41,14 @@ pub struct PamcBlockedS {
 }
 
 //static，释放pch.agent_paths中内容，rust机制，函数可为空；
-fn __pamc_delete_path_list(pch: Option<pamc_handle_t>) -> () {}
+fn __pamc_delete_path_list(_pch: Option<pamc_handle_t>) {}
 
 //函数大致功能，初始化pam控制框架，设置默认的代理路径，及使用的哪些代理路径；
 //完成程度基本100%，有一处是否需要在转换后String类型的字符串后添加\0。
 #[no_mangle]
 pub fn utpamc_start() -> Option<pamc_handle_t> {
     let mut i: i32 = 0;
-    let mut count: i32 = 0;
-    let mut last: i32 = 0;
-    let mut this: i32 = 0;
-    let default_path: Option<&'static str> = None;
+    let mut this: i32;
     let mut pch: Box<Option<pamc_handle_t>> = Box::new(None);
 
     //分配PAM结构体内存，由于Box，可省略；
@@ -113,14 +98,14 @@ pub fn utpamc_start() -> Option<pamc_handle_t> {
 
     //解析代理路径
     i = 0;
-    last = i;
+    let last = i;
     this = last;
     //this = last = i;
     while default_path.chars().nth(i as usize).is_some() || i != last {
         if default_path.chars().nth(i as usize) == Some(PAMC_SYSTEM_AGENT_SEPARATOR)
-            || !default_path.chars().nth(i as usize).is_some()
+            || default_path.chars().nth(i as usize).is_none()
         {
-            let mut length: i32 = 0;
+            let length: i32 = 0;
 
             //pch->agent_paths[this] = malloc(length = 1+i-last);
             //为代理路径分配内存，Vec类型，无需进行内存申请操作；
@@ -170,12 +155,12 @@ pub fn utpamc_start() -> Option<pamc_handle_t> {
                 //处理完所有路径退出
                 break;
             }
-            let last = i + 1;
+            let _last = i + 1;
         } else {
             i += 1;
         }
     } //while
-    return *pch;
+    *pch
 
     //drop_list: drop_pch:
     //c中由于申请内存失败会跳转到此，来返回空，
@@ -191,14 +176,14 @@ pub const PAM_BPC_FALSE: u8 = 0;
 //失败返回false宏，成功返回retval(经pamc_shutdown_agents函数)
 #[no_mangle]
 pub fn pamc_end(mut pch_p: Option<&mut pamc_handle_t>) -> u32 {
-    let mut retval: u32 = 0;
+    let retval: u32 = 0;
 
     if pch_p.is_none() {
         //D(called with no pch_p);
         return PAM_BPC_FALSE as u32;
     }
 
-    if let Some(ref mut pch_ref) = pch_p {
+    if let Some(ref mut _pch_ref) = pch_p {
     } else {
         //D(called with no *pch_p);
         return PAM_BPC_FALSE as u32;
@@ -214,5 +199,5 @@ pub fn pamc_end(mut pch_p: Option<&mut pamc_handle_t>) -> u32 {
     //free(*pch_p);
     //*pch_p = null;
 
-    return retval;
+    retval
 }

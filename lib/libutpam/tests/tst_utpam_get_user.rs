@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#![allow(clippy::redundant_static_lifetimes)]
 use std::any::Any;
 use std::rc::Rc;
 use utpam::common::*;
@@ -12,8 +11,8 @@ use utpam::utpam::UtpamHandle;
 use utpam::utpam_item::utpam_get_user;
 use utpam::utpam_start::utpam_start;
 
-const PROMPT: &'static str = "myprompt:";
-const USER: &'static str = "itsme";
+const PROMPT: &str = "myprompt:";
+const USER: &str = "itsme";
 
 pub fn login_conv(
     num_msg: usize,

@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#![allow(dead_code)]
 use crate::common::*;
 use crate::pam_syslog;
 use crate::utpam::*;
@@ -36,7 +35,12 @@ fn _pam_audit_open(utpamh: &UtpamHandle) -> i32 {
     audit_fd
 }
 
-fn pam_modutil_audit_write(utpamh: &UtpamHandle, _type: i32, _message: &str, _retval: i32) -> i32 {
+pub fn pam_modutil_audit_write(
+    utpamh: &UtpamHandle,
+    _type: i32,
+    _message: &str,
+    _retval: i32,
+) -> i32 {
     #[cfg(feature = "have_audit")]
     {
         let audit_fd = _pam_audit_open(utpamh);

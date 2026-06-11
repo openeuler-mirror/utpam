@@ -108,7 +108,7 @@ fn utpam_get_authtok_internal(
     }
 
     if let Some(prompt) = prompt {
-        retval = pam_prompt!(utpamh, PAM_PROMPT_ECHO_OFF, resp[0].clone(), "{}", prompt) as u8;
+        retval = pam_prompt!(utpamh, PAM_PROMPT_ECHO_OFF, resp[0].clone(), "{}", prompt);
         if retval == PAM_SUCCESS && chpass > 1 && !resp[0].is_empty() {
             retval = pam_prompt!(
                 utpamh,
@@ -116,7 +116,7 @@ fn utpam_get_authtok_internal(
                 resp[1].clone(),
                 "Retype {}",
                 prompt
-            ) as u8;
+            );
         }
     } else if chpass == 1 {
         utpamh.authtok_verified = 0;
@@ -127,14 +127,14 @@ fn utpam_get_authtok_internal(
                 resp[1].clone(),
                 "New {} password: ",
                 tok
-            ) as u8,
+            ),
             None => pam_prompt!(
                 utpamh,
                 PAM_PROMPT_ECHO_OFF,
                 resp[1].clone(),
                 "{}",
                 PROMPT_NEW_NOARG
-            ) as u8,
+            ),
         }
     } else if item == PAM_OLDAUTHTOK {
         retval = match authtok_type {
@@ -144,17 +144,17 @@ fn utpam_get_authtok_internal(
                 resp[0].clone(),
                 "Current {} password: ",
                 tok
-            ) as u8,
+            ),
             None => pam_prompt!(
                 utpamh,
                 PAM_PROMPT_ECHO_OFF,
                 resp[0].clone(),
                 "{}",
                 PROMPT_CURRENT_NOARG
-            ) as u8,
+            ),
         }
     } else {
-        retval = pam_prompt!(utpamh, PAM_PROMPT_ECHO_OFF, resp[0].clone(), "{}", PROMPT) as u8;
+        retval = pam_prompt!(utpamh, PAM_PROMPT_ECHO_OFF, resp[0].clone(), "{}", PROMPT);
     }
 
     if (retval != PAM_SUCCESS || resp[0].is_empty() || (chpass > 1 && resp[1].is_empty()))
@@ -235,7 +235,7 @@ pub fn utpam_get_authtok_verify(
     }
 
     if let Some(p) = prompt {
-        retval = pam_prompt!(utpamh, PAM_PROMPT_ECHO_OFF, resp.clone(), "Retype {}", p) as u8;
+        retval = pam_prompt!(utpamh, PAM_PROMPT_ECHO_OFF, resp.clone(), "Retype {}", p);
     } else {
         let mut value: Box<dyn Any> = Box::new(());
         retval = utpam_get_item(utpamh, PAM_AUTHTOK_TYPE, &mut value);
@@ -254,14 +254,14 @@ pub fn utpam_get_authtok_verify(
                 resp.clone(),
                 "Retype new {} password: ",
                 tok
-            ) as u8,
+            ),
             None => pam_prompt!(
                 utpamh,
                 PAM_PROMPT_ECHO_OFF,
                 resp.clone(),
                 "{}",
                 PROMPT_RETYPE_NOARG
-            ) as u8,
+            ),
         }
     }
 

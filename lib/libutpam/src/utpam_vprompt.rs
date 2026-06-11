@@ -4,9 +4,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#![allow(unused_assignments)]
-#![allow(dead_code)]
-
 use crate::utpam::UtpamHandle;
 use crate::utpam_item::utpam_get_item;
 use crate::utpam_overwrite_string;
@@ -50,13 +47,8 @@ pub fn pam_vprompt(utpamh: &UtpamHandle, style: u8, mut response: String, msgbuf
     };
     let mut pam_resp: Option<Vec<UtpamResponse>> = None;
     let mut convp: Box<dyn Any> = Box::new(());
-    let mut retval: u8 = 0;
 
-    if response.is_empty() {
-        response = String::default();
-    }
-
-    retval = utpam_get_item(utpamh, PAM_CONV, &mut convp);
+    let retval = utpam_get_item(utpamh, PAM_CONV, &mut convp);
     if retval != PAM_SUCCESS {
         return retval;
     }
@@ -80,7 +72,7 @@ pub fn pam_vprompt(utpamh: &UtpamHandle, style: u8, mut response: String, msgbuf
     }
     msg.msg.clone_from(&msgbuf);
     // 调用conv()函数，只获取1条消息
-    retval = new_conv(1, &[msg], &mut pam_resp, conv.appdata_ptr.clone());
+    let retval = new_conv(1, &[msg], &mut pam_resp, conv.appdata_ptr.clone());
     if retval != PAM_SUCCESS && pam_resp.is_some() {
         pam_syslog!(
             utpamh,
@@ -89,15 +81,12 @@ pub fn pam_vprompt(utpamh: &UtpamHandle, style: u8, mut response: String, msgbuf
         );
     }
     if !response.is_empty() {
-        match pam_resp {
-            Some(ref mut resp) => {
-                response.clone_from(&resp[0].resp);
+        if let Some(ref mut resp) = pam_resp {
+            response.clone_from(&resp[0].resp);
 
-                if !resp[0].resp.is_empty() {
-                    utpam_overwrite_string!(resp[0].resp);
-                }
+            if !resp[0].resp.is_empty() {
+                utpam_overwrite_string!(resp[0].resp);
             }
-            None => response = String::default(),
         }
     }
     utpam_overwrite_string!(msgbuf.clone());
